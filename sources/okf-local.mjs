@@ -105,12 +105,14 @@ export function normalizeConceptId(value) {
   return normalized;
 }
 
-// A concept id must stay within its layer root — reject any path-traversal form,
-// including a bare ".." (no trailing slash) and a trailing "/..".
+// A concept id must stay within its layer root — reject any path-traversal form:
+// a bare ".." (no trailing slash), a trailing "/..", and absolute paths. The guard
+// is self-contained (does not rely on the caller using path.join over path.resolve).
 export function isTraversal(normalized) {
   return (
     normalized === "." ||
     normalized === ".." ||
+    normalized.startsWith("/") ||
     normalized.startsWith("../") ||
     normalized.includes("/../") ||
     normalized.endsWith("/..")

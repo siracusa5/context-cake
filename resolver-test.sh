@@ -145,7 +145,7 @@ grep -q '"layer": "company"' <<<"$conf" || fail "conflict — dissent should nam
 grep -q '2026-06-01' <<<"$conf" || fail "conflict — dissent should carry the company updated date" "$conf"
 
 # --- Path-traversal guard: a concept id must not escape its layer root ---
-for evil in ".." "../secrets" "decisions/../../etc/passwd" "a/.."; do
+for evil in ".." "../secrets" "decisions/../../etc/passwd" "a/.." "/etc/passwd"; do
   if node "$resolver" --manifest "$tmpdir/conf-layers.json" --concept "$evil" 2>/dev/null; then
     fail "path-traversal id '$evil' should be rejected, not resolved"
   fi

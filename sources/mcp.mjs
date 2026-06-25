@@ -120,11 +120,12 @@ function translateToOkf(node) {
   const newest = facts.reduce((m, f) => (f.lastTouched > m ? f.lastTouched : m), "") || null;
   const frontmatter = { type: node.kind ?? "concept", title: node.title ?? node.node, updated: newest };
   const sections = facts.map((f) => {
-    const key = String(f.topic).toLowerCase();
+    const topic = String(f.topic ?? "untitled");
+    const key = topic.toLowerCase();
     return {
       key,
-      heading: `## ${f.topic} {#${key}}`,
-      lines: String(f.text).split("\n"),
+      heading: `## ${topic} {#${key}}`,
+      lines: String(f.text ?? "").split("\n"),
       updated: f.lastTouched ?? null,
       override: null,
     };

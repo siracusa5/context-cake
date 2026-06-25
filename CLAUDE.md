@@ -30,6 +30,8 @@ node resolver.mjs --manifest layers.json --concept decisions/primary-db
 python3 -m http.server 8788 --directory control-surface
 
 # Seed + verify the team demo (then see demo/RUNBOOK.md for the live script)
+# NOTE: currently BROKEN — demo/setup.sh + verify.sh use the removed --hash/--shadow
+# flags. Pending reconciliation with the core re-arch (see specs/contextcake-core/design.md §10).
 npm run demo:verify
 ```
 
