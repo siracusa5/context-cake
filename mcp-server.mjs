@@ -10,7 +10,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
-import { resolveConcept, parseConcept } from "./resolver.mjs";
+import { resolveConcept } from "./resolver.mjs";
+import { parseConcept } from "./sources/okf-local.mjs";
+import { buildSources } from "./sources/index.mjs";
 
 const args = parseArgs(process.argv.slice(2));
 
@@ -23,13 +25,6 @@ const layers = buildLayers(args);
 if (layers.length === 0) {
   printHelp();
   process.exit(1);
-}
-
-for (const layer of layers) {
-  if (!fs.existsSync(layer.root)) {
-    console.error(`Missing layer root for "${layer.name}": ${layer.root}`);
-    process.exit(1);
-  }
 }
 
 const layerByName = new Map(layers.map((layer) => [layer.name, layer]));
@@ -127,34 +122,35 @@ async function handleMessage(message) {
 
 async function callTool(name, toolArgs) {
   if (name === "search") return search(toolArgs);
-  if (name === "read_file") return readFileTool(toolArgs);
-  if (name === "list_concepts") return listConcepts(toolArgs);
-  if (name === "get_links") return getLinks(toolArgs);
+  if (name === "read_file") return await readFileTool(toolArgs);
+  if (name === "list_concepts") return await listConcepts(toolArgs);
+  if (name === "get_links") return await getLinks(toolArgs);
   throw new Error(`Unknown tool: ${name}`);
 }
 
 // ---- tools ----------------------------------------------------------------
 
-function search({ query, limit = 10 }) {
+async function search({ query, limit = 10 }) {
   if (!query || typeof query !== "string") throw new Error("search requires a non-empty query string");
   const tokens = tokenize(query);
   if (tokens.length === 0) throw new Error("search query must contain at least one searchable token");
 
   const byId = new Map();
-  for (const layer of layers) {
-    for (const filePath of walkMarkdown(layer.root)) {
-      const content = fs.readFileSync(filePath, "utf8");
-      const id = conceptId(layer, filePath);
-      const { frontmatter } = parseConcept(content);
-      const score = scoreText(tokens, [id, frontmatter.title ?? "", frontmatter.description ?? "", String(frontmatter.tags ?? ""), content]);
+  for (const source of layers) {
+    for (const id of await source.listConceptIds()) {
+      const entry = await source.loadConcept(id);
+      if (!entry) continue;
+      const { frontmatter, sections } = entry;
+      const sectionText = sections.map((s) => s.lines.join("\n")).join("\n");
+      const score = scoreText(tokens, [id, frontmatter.title ?? "", frontmatter.description ?? "", String(frontmatter.tags ?? ""), sectionText]);
       if (score <= 0) continue;
 
       const existing = byId.get(id);
       if (!existing) {
-        byId.set(id, { id, title: frontmatter.title ?? null, score, layers: [layer.name], snippet: makeSnippet(content, tokens) });
+        byId.set(id, { id, title: frontmatter.title ?? null, score, layers: [source.name], snippet: makeSnippet(sectionText, tokens) });
       } else {
         existing.score += score;
-        existing.layers.push(layer.name);
+        existing.layers.push(source.name);
         if (!existing.title) existing.title = frontmatter.title ?? null;
       }
     }
@@ -166,69 +162,71 @@ function search({ query, limit = 10 }) {
     .map((entry) => ({ ...entry, layers: orderLayerNames(entry.layers) }));
 }
 
-function readFileTool({ concept_id, layer }) {
+async function readFileTool({ concept_id, layer }) {
   const id = normalizeId(concept_id);
 
   if (layer) {
     const target = layerByName.get(layer);
     if (!target) throw new Error(`Unknown layer: ${layer}`);
-    const filePath = path.join(target.root, `${id}.md`);
-    if (!fs.existsSync(filePath)) throw new Error(`Concept not found in layer ${layer}: ${id}`);
-    const content = fs.readFileSync(filePath, "utf8");
-    return { id, layer, raw: true, ...parseConcept(content), content };
+    const entry = await target.loadConcept(id);
+    if (!entry) throw new Error(`Concept not found in layer ${layer}: ${id}`);
+    return { id, layer, raw: true, ...entry };
   }
 
-  const resolved = resolveConcept(id, layers);
+  const resolved = await resolveConcept(id, layers);
   if (!resolved) throw new Error(`Concept not found in any layer: ${id}`);
   return { ...resolved, markdown: assembleMarkdown(resolved) };
 }
 
-function listConcepts({ type } = {}) {
+async function listConcepts({ type } = {}) {
   const byId = new Map();
-  for (const layer of layers) {
-    for (const filePath of walkMarkdown(layer.root)) {
-      const id = conceptId(layer, filePath);
-      const { frontmatter } = parseConcept(fs.readFileSync(filePath, "utf8"));
+  for (const source of layers) {
+    for (const id of await source.listConceptIds()) {
+      const entry = await source.loadConcept(id);
+      const frontmatter = entry?.frontmatter ?? {};
       const existing = byId.get(id);
       if (!existing) {
-        byId.set(id, { id, type: frontmatter.type ?? null, title: frontmatter.title ?? null, layers: [layer.name] });
+        byId.set(id, { id, type: frontmatter.type ?? null, title: frontmatter.title ?? null, layers: [source.name] });
       } else {
-        existing.layers.push(layer.name);
+        existing.layers.push(source.name);
       }
     }
   }
 
-  return [...byId.values()]
-    .map((entry) => ({ ...entry, layers: orderLayerNames(entry.layers) }))
-    .filter((entry) => {
-      if (!type) return true;
-      const effective = resolveConcept(entry.id, layers);
-      return effective?.frontmatter.type === type;
-    })
+  const entries = [...byId.values()].map((entry) => ({ ...entry, layers: orderLayerNames(entry.layers) }));
+  if (!type) return entries.sort((a, b) => a.id.localeCompare(b.id));
+
+  const resolvedAll = await Promise.all(entries.map((e) => resolveConcept(e.id, layers)));
+  return entries
+    .filter((_, i) => resolvedAll[i]?.frontmatter.type === type)
     .sort((a, b) => a.id.localeCompare(b.id));
 }
 
-function getLinks({ concept_id }) {
+async function getLinks({ concept_id }) {
   const id = normalizeId(concept_id);
-  const resolved = resolveConcept(id, layers);
+  const resolved = await resolveConcept(id, layers);
   if (!resolved) throw new Error(`Concept not found in any layer: ${id}`);
 
   const body = resolved.sections.map((s) => `${s.heading ?? ""}\n${s.content}`).join("\n");
-  const outgoing = extractLinks(body).map((link) => {
+  const rawLinks = extractLinks(body).map((link) => {
     const targetId = resolveLinkTarget(id, link.target);
-    return { raw: link.raw, target: link.target, id: targetId, layers: targetId ? orderLayerNames(layersWith(targetId)) : [] };
+    return { raw: link.raw, target: link.target, id: targetId };
   });
+  const outgoing = await Promise.all(rawLinks.map(async (link) => ({
+    ...link,
+    layers: link.id ? orderLayerNames(await layersWith(link.id)) : [],
+  })));
 
   const incoming = [];
-  for (const layer of layers) {
-    for (const filePath of walkMarkdown(layer.root)) {
-      const sourceId = conceptId(layer, filePath);
+  for (const source of layers) {
+    for (const sourceId of await source.listConceptIds()) {
       if (sourceId === id) continue;
-      const { sections } = parseConcept(fs.readFileSync(filePath, "utf8"));
-      const sourceBody = sections.map((s) => `${s.heading ?? ""}\n${s.lines.join("\n")}`).join("\n");
+      const entry = await source.loadConcept(sourceId);
+      if (!entry) continue;
+      const sourceBody = entry.sections.map((s) => `${s.heading ?? ""}\n${s.lines.join("\n")}`).join("\n");
       for (const link of extractLinks(sourceBody)) {
         if (resolveLinkTarget(sourceId, link.target) === id) {
-          incoming.push({ id: sourceId, layer: layer.name, raw: link.raw });
+          incoming.push({ id: sourceId, layer: source.name, raw: link.raw });
           break;
         }
       }
@@ -247,17 +245,18 @@ function getLinks({ concept_id }) {
 function buildLayers(parsed) {
   if (parsed.manifest) {
     const manifest = JSON.parse(fs.readFileSync(parsed.manifest, "utf8"));
-    return (manifest.layers ?? []).map((layer) => ({
-      name: layer.name,
-      level: Number(layer.level),
-      root: path.resolve(path.dirname(parsed.manifest), layer.path),
-    }));
+    return buildSources(manifest, path.dirname(parsed.manifest));
   }
   if (parsed.personal && parsed.shared) {
-    return [
-      { name: "personal", level: 3, root: path.resolve(parsed.personal) },
-      { name: "shared", level: 0, root: path.resolve(parsed.shared) },
-    ];
+    return buildSources(
+      {
+        layers: [
+          { name: "personal", level: 3, source: "okf-local", path: path.resolve(parsed.personal) },
+          { name: "shared", level: 0, source: "okf-local", path: path.resolve(parsed.shared) },
+        ],
+      },
+      process.cwd(),
+    );
   }
   return [];
 }
@@ -266,8 +265,12 @@ function conceptId(layer, filePath) {
   return toPosix(path.relative(layer.root, filePath)).replace(/\.md$/i, "");
 }
 
-function layersWith(id) {
-  return layers.filter((layer) => fs.existsSync(path.join(layer.root, `${id}.md`))).map((layer) => layer.name);
+async function layersWith(id) {
+  const results = await Promise.all(layers.map(async (source) => {
+    const entry = await source.loadConcept(id);
+    return entry ? source.name : null;
+  }));
+  return results.filter(Boolean);
 }
 
 function orderLayerNames(names) {
