@@ -11,7 +11,6 @@ import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
 import { resolveConcept } from "./resolver.mjs";
-import { parseConcept } from "./sources/okf-local.mjs";
 import { buildSources } from "./sources/index.mjs";
 
 const args = parseArgs(process.argv.slice(2));
@@ -261,10 +260,6 @@ function buildLayers(parsed) {
   return [];
 }
 
-function conceptId(layer, filePath) {
-  return toPosix(path.relative(layer.root, filePath)).replace(/\.md$/i, "");
-}
-
 async function layersWith(id) {
   const results = await Promise.all(layers.map(async (source) => {
     const entry = await source.loadConcept(id);
@@ -343,22 +338,6 @@ function assembleMarkdown(resolved) {
   return front + bodyParts.join("\n\n");
 }
 
-function walkMarkdown(root) {
-  if (!fs.existsSync(root)) return [];
-  const files = [];
-  const stack = [root];
-  while (stack.length > 0) {
-    const current = stack.pop();
-    for (const dirent of fs.readdirSync(current, { withFileTypes: true })) {
-      if (dirent.name.startsWith(".") || dirent.name === "node_modules") continue;
-      const fullPath = path.join(current, dirent.name);
-      if (dirent.isDirectory()) stack.push(fullPath);
-      else if (dirent.isFile() && dirent.name.endsWith(".md")) files.push(fullPath);
-    }
-  }
-  return files.sort();
-}
-
 function scoreText(tokens, haystacks) {
   return tokens.reduce((total, token) => {
     return total + haystacks.reduce((subtotal, haystack, index) => {
@@ -398,10 +377,6 @@ function stripDecoration(value) {
 
 function isExternal(value) {
   return /^[a-z][a-z0-9+.-]*:/i.test(value) && !layerByName.has(value.slice(0, value.indexOf(":")));
-}
-
-function toPosix(value) {
-  return value.split(path.sep).join("/");
 }
 
 function parseArgs(argv) {
