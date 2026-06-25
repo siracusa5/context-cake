@@ -3,7 +3,8 @@
 > three layers, two rules + per-section suppression, conflicts surfaced with dates, and a
 > source-adapter seam (OKF-local + MCP). The shadow/hash subsystem, `override:exception`, the
 > Group layer, and same-level DAG recency described below are **removed**. This document is kept
-> for historical design rationale; do not treat §3–§4 mechanics as current.
+> for historical design rationale; do not treat its mechanics (notably §3–§4 merge/precedence and
+> §6 shadow-staleness detection) as current — shadow detection no longer exists.
 
 # Team Context Radar — Cascading Knowledge Layers Architecture
 

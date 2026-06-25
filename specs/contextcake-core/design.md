@@ -99,10 +99,10 @@ expected, not a regression. The suppression test is kept.
 |---|---|---|
 | `resolver.mjs` | Core engine: OKF parse, source adapters, primary+conflict resolution | refactor (§5) |
 | `sources/okf-local.mjs` | Adapter: read an OKF git bundle from disk (today's logic, extracted) | new (extracted) |
-| `sources/mcp-source.mjs` | Adapter: query a foreign graph over MCP, translate response → OKF concept (+edges) | new |
-| `mock-graph-server.mjs` | A tiny **non-OKF** MCP graph server for the POC's `org-default` layer (proves translation; self-contained, dependency-free) | new |
+| `sources/mcp.mjs` | Adapter: query a foreign graph over MCP, translate response → OKF concept (+edges) | new |
+| `examples/mock-context-source.mjs` | A tiny **non-OKF** MCP graph server for the POC's `org-default` layer (proves translation; self-contained, dependency-free) | new |
 | `mcp-server.mjs` | The read surface agents connect to; resolves via `resolver.mjs`; `read_file`/`get_links`/`search` now return primary+conflicts | light change |
-| manifest | A layer now declares a `source` type: `{ "name":"org-default", "level":0, "source":"mcp", "endpoint":"..." }` vs `"source":"okf-local","path":"..."` | schema add |
+| manifest | A layer now declares a `source` type: `{ "name":"org-default", "level":0, "source":"mcp", "command":"node", "args":["./examples/mock-context-source.mjs"] }` vs `"source":"okf-local","path":"..."` | schema add |
 
 ## 7. POC scope
 
@@ -132,8 +132,8 @@ later); additional adapters beyond OKF-local + one MCP; the live demo content/ru
 - WHEN two layers define the same section with different content THE SYSTEM SHALL return the
   higher-layer value as primary AND attach each dissenting layer's value, source layer, and
   last-updated date.
-- WHEN a layer's `source` is `mcp` THE SYSTEM SHALL query that endpoint and translate its response
-  into OKF concepts and edges before resolving, indistinguishably from an OKF-local layer.
+- WHEN a layer's `source` is `mcp` THE SYSTEM SHALL spawn and query that MCP server and translate its
+  response into OKF concepts and edges before resolving, indistinguishably from an OKF-local layer.
 - WHEN a resolved concept's body contains **outgoing** links THE SYSTEM SHALL preserve them in the
   stitched OKF output. (Cross-source **incoming**/backlink discovery from an MCP-backed layer is
   out of POC scope — see §10.)
