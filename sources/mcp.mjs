@@ -12,6 +12,14 @@ export function createMcpSource({ name, level, command, args = [] }) {
   const pending = new Map();
   let startError = null;
 
+  // Reject every in-flight request immediately so a dead/unreachable source
+  // degrades instantly instead of waiting for each request's timeout.
+  function failAll(e) {
+    startError = startError || e;
+    for (const [, p] of pending) { clearTimeout(p.timer); p.reject(e); }
+    pending.clear();
+  }
+
   function ensureStarted() {
     if (child || startError) return;
     try {
@@ -20,7 +28,12 @@ export function createMcpSource({ name, level, command, args = [] }) {
       startError = e;
       return;
     }
-    child.on("error", (e) => { startError = e; });
+    // spawn() defers failures to async events: a missing binary fires "error";
+    // a process that starts then dies (e.g. node with a missing script) fires
+    // "exit" with a non-zero code. Either way, fail fast — don't wait for timeout.
+    child.on("error", (e) => failAll(e));
+    child.on("exit", (code) => { if (code) failAll(new Error(`MCP source "${name}" exited with code ${code}`)); });
+    child.stdin.on("error", () => {}); // swallow EPIPE if the child is already gone
     rl = readline.createInterface({ input: child.stdout, crlfDelay: Infinity });
     rl.on("line", (line) => {
       let msg;
@@ -28,6 +41,7 @@ export function createMcpSource({ name, level, command, args = [] }) {
       const p = pending.get(msg.id);
       if (!p) return;
       pending.delete(msg.id);
+      clearTimeout(p.timer);
       if (msg.error) p.reject(new Error(msg.error.message));
       else p.resolve(msg.result);
     });
@@ -39,11 +53,12 @@ export function createMcpSource({ name, level, command, args = [] }) {
     return new Promise((resolve, reject) => {
       if (startError) return reject(startError);
       const id = nextId++;
-      pending.set(id, { resolve, reject });
-      child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`);
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         if (pending.has(id)) { pending.delete(id); reject(new Error(`MCP source "${name}" timed out on ${method}`)); }
       }, 5000);
+      timer.unref?.(); // don't let a pending timeout keep the process alive
+      pending.set(id, { resolve, reject, timer });
+      child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`);
     });
   }
 
