@@ -58,9 +58,26 @@ function fileKind(ext) {
   return "binary";
 }
 
+const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   try {
+    // CSRF guard: a state-changing endpoint (add MCP source = command spawn,
+    // git clone, file/section write) must not be driveable by another origin's
+    // page just because we bind 127.0.0.1. Allow same-origin and non-browser
+    // callers (curl/tests send neither header); block cross-site/cross-origin.
+    if (MUTATING.has(req.method)) {
+      const site = req.headers["sec-fetch-site"];
+      const origin = req.headers.origin;
+      let blocked = false;
+      if (site !== undefined) blocked = site !== "same-origin" && site !== "none";
+      else if (origin !== undefined) {
+        try { blocked = new URL(origin).host !== req.headers.host; } catch { blocked = true; }
+      }
+      if (blocked) return json(res, 403, { error: "Cross-origin request blocked" });
+    }
+
     if (url.pathname === "/api/graph") return json(res, 200, await buildGraph());
     if (url.pathname === "/api/resolve") return json(res, 200, await resolveOne(url.searchParams.get("concept")));
     if (url.pathname === "/api/files") return json(res, 200, listFiles());
@@ -237,7 +254,13 @@ async function addSourceApi(rawBody) {
     const dir = path.join(CACHE_DIR, slug);
     await gitCloneOrPull(url, dir, b.ref ? String(b.ref) : null);
     const sub = b.subdir ? String(b.subdir).replace(/^\/+|\/+$/g, "") : "";
-    const abs = sub ? path.join(dir, sub) : dir;
+    // The sub-directory must stay inside the clone — otherwise this field would
+    // set a new sandbox root (layer.path) pointing anywhere on disk.
+    let abs = dir;
+    if (sub) {
+      abs = path.resolve(dir, sub);
+      if (abs !== dir && !abs.startsWith(dir + path.sep)) throw httpError(400, "Sub-directory escapes the repository");
+    }
     layer = { name, level, path: path.relative(MANIFEST_DIR, abs), origin: url, ref: b.ref || null };
   } else {
     throw httpError(400, `Unknown source kind: ${b.kind}`);
@@ -337,7 +360,19 @@ function resolveFilePath(apiPath) {
   if (!root) throw httpError(404, `Unknown layer: ${layer}`);
   const abs = path.resolve(root, rel);
   if (abs !== root && !abs.startsWith(root + path.sep)) throw httpError(403, "Path escapes its layer root");
+  // Symlink defense: the lexical check above trusts the path text; a symlink
+  // inside the root could still point outside it. Compare realpaths (of the
+  // existing target, or of the parent dir for a not-yet-existing file).
+  const realRoot = safeRealpath(root);
+  const realAbs = fs.existsSync(abs)
+    ? safeRealpath(abs)
+    : path.join(safeRealpath(path.dirname(abs)), path.basename(abs));
+  if (realAbs !== realRoot && !realAbs.startsWith(realRoot + path.sep)) throw httpError(403, "Path escapes its layer root");
   return { abs, layer, rel, root, ext: path.extname(abs).toLowerCase() };
+}
+
+function safeRealpath(p) {
+  try { return fs.realpathSync.native(p); } catch { return path.resolve(p); }
 }
 
 function listFiles() {
@@ -415,15 +450,27 @@ function writeSectionApi(rawBody) {
 function replaceSection(text, key, newBody) {
   const nl = text.includes("\r\n") ? "\r\n" : "\n";
   const lines = text.split(/\r?\n/);
+  const isFence = (l) => /^\s{0,3}(```|~~~)/.test(l);
+  const isHeading = (l) => /^#{1,6}\s+/.test(l);
+
+  // Heading detection must ignore `#` lines inside fenced code blocks
+  // (e.g. a `# comment` in a bash snippet), or the section boundary is wrong
+  // and the write corrupts the file.
   let start = -1;
+  let inFence = false;
   for (let i = 0; i < lines.length; i += 1) {
+    if (isFence(lines[i])) { inFence = !inFence; continue; }
+    if (inFence) continue;
     const m = lines[i].match(/^#{1,6}\s+(.+?)\s*$/);
     if (m && headingKey(m[1]) === key) { start = i; break; }
   }
   if (start === -1) return { text, replaced: false };
+
   let end = lines.length;
+  inFence = false;
   for (let i = start + 1; i < lines.length; i += 1) {
-    if (/^#{1,6}\s+/.test(lines[i])) { end = i; break; }
+    if (isFence(lines[i])) { inFence = !inFence; continue; }
+    if (!inFence && isHeading(lines[i])) { end = i; break; }
   }
   const rebuilt = [
     ...lines.slice(0, start + 1),
@@ -451,6 +498,7 @@ function walkFiles(root) {
     const dir = stack.pop();
     for (const dirent of fs.readdirSync(dir, { withFileTypes: true })) {
       if (dirent.name.startsWith(".") || dirent.name === "node_modules") continue;
+      if (dirent.isSymbolicLink()) continue; // don't traverse/list out of the root
       const full = path.join(dir, dirent.name);
       if (dirent.isDirectory()) stack.push(full);
       else if (dirent.isFile()) out.push(full);
