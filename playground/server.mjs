@@ -59,6 +59,7 @@ function fileKind(ext) {
 }
 
 const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const LOCAL_HOSTS = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
@@ -68,6 +69,13 @@ const server = http.createServer(async (req, res) => {
     // page just because we bind 127.0.0.1. Allow same-origin and non-browser
     // callers (curl/tests send neither header); block cross-site/cross-origin.
     if (MUTATING.has(req.method)) {
+      // DNS-rebinding defense: a rebound domain can make a remote page's request
+      // look same-origin, so the Host must be a loopback name (we bind 127.0.0.1).
+      const hostname = (req.headers.host || "").replace(/:\d+$/, "");
+      if (!LOCAL_HOSTS.has(hostname)) return json(res, 403, { error: "Untrusted Host header" });
+      // CSRF: block cross-origin state-changing requests (add MCP source = command
+      // spawn, git clone, file/section write). Same-origin and non-browser callers
+      // (curl/tests send neither header) are allowed.
       const site = req.headers["sec-fetch-site"];
       const origin = req.headers.origin;
       let blocked = false;

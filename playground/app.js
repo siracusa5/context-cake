@@ -950,8 +950,12 @@ function schedulePreview(ext) {
 
 function renderTextPreview(ext, value) {
   if (ext === ".svg") {
+    // Render via a data: URI in an <img>, NOT innerHTML — a source file can be
+    // arbitrary (e.g. a cloned repo), and SVG inlined into the DOM executes its
+    // scripts/handlers. In an <img> the SVG is inert (image context).
     fx.preview.classList.add("is-media");
-    fx.preview.innerHTML = value; // render the vector directly
+    fx.preview.innerHTML =
+      `<img class="preview-img" alt="SVG preview" src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(value)}">`;
     return;
   }
   fx.preview.classList.remove("is-media");
@@ -960,7 +964,11 @@ function renderTextPreview(ext, value) {
   const md = value
     .replace(/^---\n[\s\S]*?\n---\n?/, "")
     .replace(/^(#{1,6}[^\n]*?)\s*\{#[^}]*\}\s*$/gm, "$1");
-  const html = window.marked ? marked.parse(md) : `<pre>${escapeHtml(md)}</pre>`;
+  const raw = window.marked ? marked.parse(md) : `<pre>${escapeHtml(md)}</pre>`;
+  // Sanitize: source content is untrusted (a GitHub source is any repo), and
+  // this HTML is same-origin — an unsanitized <script>/onerror could drive the
+  // mutating APIs. DOMPurify strips scripts, event handlers, and js: URLs.
+  const html = window.DOMPurify ? DOMPurify.sanitize(raw) : escapeHtml(md);
   fx.preview.innerHTML = `<div class="md-body">${html}</div>`;
 }
 
