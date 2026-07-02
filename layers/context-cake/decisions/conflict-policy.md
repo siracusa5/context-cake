@@ -37,4 +37,4 @@ Sections with no conflict resolve silently — no `conflicts` array, just inheri
 
 ## Related {#related}
 
-[[decisions/resolution-model]], [[personal:principles/engineering-values]]
+[[resolution-model]]

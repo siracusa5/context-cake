@@ -44,4 +44,4 @@ not the `list_nodes`/`get_node` protocol the MCP adapter expects).
 
 ## Related {#related}
 
-[[decisions/layer-structure]], [[decisions/resolution-model]]
+[[layer-structure]], [[resolution-model]]

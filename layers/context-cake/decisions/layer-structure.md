@@ -38,4 +38,4 @@ from the manifest. Only point `--manifest` at configs you trust.
 
 ## Related {#related}
 
-[[decisions/resolution-model]], [[decisions/source-contract]], [[architecture/overview]]
+[[resolution-model]], [[source-contract]], [[/architecture/overview]]

@@ -36,4 +36,4 @@ currently broken — its `setup.sh` and `verify.sh` still reference the removed
 
 ## Related {#related}
 
-[[decisions/resolution-model]], [[decisions/layer-structure]], [[decisions/conflict-policy]]
+[[/decisions/resolution-model]], [[/decisions/layer-structure]], [[/decisions/conflict-policy]]

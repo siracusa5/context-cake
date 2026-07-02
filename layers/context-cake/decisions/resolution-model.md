@@ -35,4 +35,4 @@ see exactly where each section originated.
 
 ## Related {#related}
 
-[[decisions/conflict-policy]], [[decisions/layer-structure]], [[decisions/source-contract]]
+[[conflict-policy]], [[layer-structure]], [[source-contract]]
