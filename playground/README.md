@@ -79,16 +79,20 @@ bundles:
 - **Tree** — every file under each manifest source, grouped by layer.
 - **Editor** — CodeMirror with syntax highlighting for the file's type. Text
   files (markdown, code, SVG) are editable.
-- **Preview** — markdown rendered as prose, SVG/images rendered inline, PDFs
-  rendered by pdf.js. Use the Split / Source / Preview toggle for text files.
+- **Preview** — markdown rendered as prose (sanitized), SVG and raster images
+  rendered as images, PDFs rendered by pdf.js. Use the Split / Source / Preview
+  toggle for text files.
 - **Save = live re-resolve.** Editing a layer's OKF markdown and saving writes it
   to disk and re-runs the cascade — the conflict count on the file's concept
   chip (and the canvas) updates immediately. Remove `personal`'s `Choice`
   section, save, and watch `decisions/primary-db` drop from 2 conflicts to 1.
 
-Writes are sandboxed to the manifest's layer roots (path-traversal guarded,
-text files only, 127.0.0.1 only). The rendering libraries (CodeMirror, marked,
-pdf.js) are **vendored** under `playground/vendor/` — no CDN, no npm, works
+Writes are sandboxed to the manifest's layer roots (path-traversal and symlink
+guarded, text files only). State-changing requests require a loopback `Host` and
+same-origin (CSRF/DNS-rebinding guard), and rendered source content is sanitized
+(markdown via DOMPurify; SVG shown as an inert image) since a source can be any
+repo. The libraries (CodeMirror, marked, DOMPurify, pdf.js, and the o200k
+tokenizer) are **vendored** under `playground/vendor/` — no CDN, no npm, works
 offline. The engine itself stays dependency-free.
 
 ## The demo data
