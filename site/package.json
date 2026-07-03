@@ -4,8 +4,11 @@
   "type": "module",
   "version": "0.0.1",
   "scripts": {
+    "build-demo-data": "node scripts/build-demo-data.mjs",
+    "predev": "npm run build-demo-data",
     "dev": "astro dev",
     "start": "astro dev",
+    "prebuild": "npm run build-demo-data",
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro"
