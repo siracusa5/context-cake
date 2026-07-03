@@ -232,3 +232,112 @@ site/
 
 After completing any phase: **compare your output against `spec.md` and list any
 acceptance criteria not addressed.** Do this before declaring the phase done.
+
+## 11. Build notes — page-by-page (added 2026-07-02 for the agent build)
+
+Everything below is verified against the engine as of this commit. Do not re-derive;
+do not invent copy where approved copy is given.
+
+### 11.1 Approved copy bank
+
+- Tagline (footer, OG default): **"Conflicts surfaced, not hidden."**
+- Hero headline (shipped in scaffold): **"Every layer of what your team knows — one
+  effective view."**
+- Hero subhead: as in `site/src/pages/index.astro` (keep).
+- Problem beats (§4.2), one short paragraph each:
+  1. *Scattered* — your team's knowledge lives in repo docs, wikis, and heads; no two
+     sources agree on what's current.
+  2. *Agents read stale* — an AI agent reading one source gets one layer's truth,
+     dated and unattributed.
+  3. *Overwriting loses the dissent* — merging docs by replacement destroys the
+     minority position you'll need at the next incident.
+- How-it-works step names (§4.3): **Stack** (company indigo) / **Resolve** (team teal)
+  / **Serve** (personal amber). One sentence each, sourced from README's "layer cake"
+  section.
+
+### 11.2 Feature grid (§4.5) — the seven items
+
+| Feature | One-liner source |
+|---|---|
+| Section-level merge | README "higher layers win — per section" |
+| Conflicts carry dates | README `conflicts[]` description |
+| Provenance on every section | README `read_file` paragraph (`sourceLayer`, `frontmatterProvenance`) |
+| Foreign graphs stitch in | README `layers.json` shape (mcp source → OKF at read time) |
+| Write path captures from repos | README "Write path" pipeline |
+| Zero dependencies | README Quick start ("plain Node.js ≥ 18") + /install page framing |
+| Playground | `playground/README.md` intro |
+
+### 11.3 "For agents" section (§4.6) — real payload
+
+The MCP tool table is README's four-row table verbatim. The JSON sample MUST be real
+output of:
+
+```bash
+node resolver.mjs --manifest playground/manifest.json --concept decisions/primary-db
+```
+
+Truncate `content` strings for display; never alter structure. Shape (verified):
+
+```jsonc
+{
+  "id": "decisions/primary-db",
+  "contributors": [{ "layer": "personal", "level": 3, "updated": "2026-06-28" }, …],
+  "frontmatter": { "type": "decision", "title": "Primary database", … },
+  "frontmatterProvenance": { "type": "personal", "title": "personal", … },
+  "sections": [
+    { "key": "choice", "heading": "## Choice {#choice}", "content": "…",
+      "sourceLayer": "personal", "sourceUpdated": "2026-06-28",
+      "conflicts": [{ "layer": "company", "updated": "2026-05-01", "content": "…" }] },
+    …
+  ]
+}
+```
+
+(`suppressed: true` sections exist in the wild — renderers must skip them.)
+
+### 11.4 Demo-data seam (`site/scripts/build-demo-data.mjs`) — contract
+
+1. Read `playground/manifest.json` (paths are relative to the manifest file).
+2. Enumerate concept IDs: for each layer path, glob `**/*.md`; the concept ID is the
+   relative path minus `.md`. Union across layers. Current demo yields exactly:
+   `decisions/primary-db` (3 layers), `interfaces/auth-tokens` (2),
+   `runbooks/incident-response` (company only), `runbooks/deploy` (team only).
+3. Resolve each ID (shell out to `resolver.mjs`, or import `resolveConcept` — read-only
+   import of engine code is allowed; modifying engine files is not).
+4. Emit `site/src/data/demo-cascade.json`: `{ "concepts": [ <resolved objects> ] }`.
+   The directory is gitignored — this file is generated, never committed, never
+   hand-edited. Wire as the site `prebuild` npm script.
+
+### 11.5 Hero visual (§4.1) & /demo — storyboard and constraints
+
+Band anatomy (already shipped in the scaffold's static composite — keep it): 4px left
+border in the winning layer's color; mono section heading; provenance right-aligned
+(`layer · date`); conflict chip in `--cc-conflict` on conflicted bands.
+
+Phase-5 animation storyboard: (1) three layer planes stacked in precedence order, each
+a card in its layer color; (2) a concept present on multiple layers highlights as a
+vertical column through the planes; (3) the column resolves into ONE banded composite —
+staggered band reveal, each band striped to its source layer, provenance labels visible
+from the first frame.
+
+Hard constraints (from the reviewed prototype — violations were specifically flagged):
+- NEVER collapse to a single unstriped node (teaches whole-doc winner-takes-all — wrong).
+- Provenance visible by default, not behind a click.
+- Persona/viewer switching is a selector, not a linear "peel" (layer membership is a DAG).
+- `prefers-reduced-motion`: render the final composite statically, skip all motion.
+
+Reference implementation: **`specs/contextcake-site/assets/cascade-viz-prototype.html`**
+(self-contained, no CDN, open directly in a browser) — implements the banded composite +
+persona selector against the real `primary-db` fixture. Vendored from the 2026-06-24
+brainstorm; treat as a working sketch to steal logic from, not code to ship.
+
+### 11.6 Phase → acceptance-criteria traceability (definition of done)
+
+| Phase | Done when (spec.md §Acceptance Criteria) |
+|---|---|
+| 3 — Homepage | Homepage AC 1, 2, 4, 5, 6 (AC 3 in its static form) + all Site-wide ACs; `npm run build` exits 0 |
+| 4 — Docs port | All Docs ACs; every §5 page's TODO(agent) marker gone; `/doc-reviewer` pass clean |
+| 5 — Animation + /demo | Homepage AC 3 (animated), demo-data ACs (real resolver output), /demo page live |
+| 6 — Launch pass | OG images, a11y (4.5:1, focus, reduced-motion), responsive 375/768/1024/1440, zero broken links |
+
+Every phase ends the same way: run the §10 self-verification and paste the result.

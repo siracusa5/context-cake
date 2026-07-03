@@ -127,10 +127,10 @@ the repo is private.
 - **Demo-data seam** — a small wrapper enumerating concepts and calling `resolveConcept`
   per concept (the resolver handles one concept at a time; no all-concepts dump exists).
   Build-time only; lives in `site/scripts/`.
-- **Hero visual seed** — brainstorm prototype at
-  `~/claude_playground/brainstorms/2026-06-24-contextcake-cascade-viz.html` (banded
-  composite + persona selector already validated; cake→column collapse animation not yet
-  built).
+- **Hero visual seed** — reviewed prototype vendored at
+  `specs/contextcake-site/assets/cascade-viz-prototype.html` (banded composite +
+  persona selector already validated; cake→column collapse animation not yet built).
+  Build guidance: design.md §11.5.
 - **Deploy pipeline** — Cloudflare Pages; preview via push to main (`/deploy-preview`),
   production via GitHub release (`/go-live`).
 - **Distribution roadmap** — `specs/contextcake-distribution/spec.md` owns install
