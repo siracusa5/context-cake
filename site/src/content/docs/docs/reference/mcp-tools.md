@@ -48,7 +48,7 @@ The resolved response shape:
   "sections": [
     {
       "key": "decision",
-      "heading": "## Decision",
+      "heading": "## Decision {#decision}",
       "content": "Use Postgres 16 with read replicas.",
       "sourceLayer": "team",
       "sourceUpdated": "2026-01-22",
@@ -58,7 +58,7 @@ The resolved response shape:
     },
     {
       "key": "rollback",
-      "heading": "## Rollback",
+      "heading": "## Rollback {#rollback}",
       "content": "",
       "sourceLayer": "personal",
       "sourceUpdated": "2026-02-10",

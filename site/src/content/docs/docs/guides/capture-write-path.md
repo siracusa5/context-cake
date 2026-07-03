@@ -22,7 +22,10 @@ node classify-context.mjs --demo
 ```
 
 The demo event is a merged PR titled "Add retry runbook for payment webhook
-failures," labeled `runbook` and `incident`. Try it against your own event:
+failures," labeled `runbook` and `incident`. Because `incident` is a
+`review_required` trigger (see the outcomes below), this event routes to
+`review_required` — it's staged for a human decision, not written live. Try it
+against your own event:
 
 ```bash
 node classify-context.mjs --event my-event.json
@@ -46,7 +49,10 @@ node classify-context.mjs --event my-event.json --policy custom-policy.json
 default) is itself a `team_candidate` signal — the same question coming up
 repeatedly is evidence the answer belongs in shared context. The classifier
 result includes `route`, `confidence`, `reasons` (which rules matched), and a
-`suggestedDestination` concept path (for example `runbooks/retry-payment-webhooks`).
+`suggestedDestination` concept path — for the demo event above, that is
+`review/billing-api/add-retry-runbook-for-payment-webhook-failures` (a
+`review_required` staging path). A `team_candidate` event instead yields a
+live destination like `runbooks/retry-payment-webhooks`.
 
 ## Step 2: ingest a batch
 

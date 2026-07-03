@@ -94,7 +94,7 @@ the resolved output the section is present but marked:
 ```json
 {
   "key": "rollback",
-  "heading": "## Rollback",
+  "heading": "## Rollback {#rollback}",
   "content": "",
   "sourceLayer": "team",
   "sourceUpdated": "2026-01-22",

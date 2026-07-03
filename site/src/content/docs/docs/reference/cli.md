@@ -126,7 +126,7 @@ node promote.mjs --personal <dir> --shared <dir> --file <concept-or-path>
 | `--personal <dir>` | yes | Source personal bundle directory. |
 | `--shared <dir>` | yes | Destination shared bundle directory. |
 | `--file <concept-or-path>` | yes | Concept ID or path to promote (`.md` optional). |
-| `--branch <name>` | no | Branch name suggested by `--print-git`. Defaults to `promote/<concept>`. |
+| `--branch <name>` | no | Branch name suggested by `--print-git`. Defaults to `promote/<concept-slug>` — `.md` dropped and every character outside `[a-zA-Z0-9._-]` (including `/`) collapsed to a hyphen, e.g. `decisions/primary-db` → `promote/decisions-primary-db`. |
 | `--dry-run` | no | Print the planned operations and promoted content as JSON; write nothing. |
 | `--print-git` | no | After writing, print suggested `git` commands to open a PR. |
 | `--help`, `-h` | no | Print usage and exit. |

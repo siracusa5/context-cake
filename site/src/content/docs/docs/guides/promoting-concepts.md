@@ -78,11 +78,11 @@ node promote.mjs --personal ~/kb-personal --shared ~/kb-team --file decisions/pr
 ```
 
 ```
-Promoted decisions/primary-db
+Promoted decisions/primary-db.md
 
 Suggested git commands:
   cd /Users/you/kb-team
-  git checkout -b promote/decisions/primary-db
+  git checkout -b promote/decisions-primary-db
   git add decisions/primary-db.md index.md
   git commit -m "docs: promote decisions/primary-db"
   git push -u origin HEAD
