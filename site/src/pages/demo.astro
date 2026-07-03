@@ -164,13 +164,13 @@ const concepts = demo.concepts.map((c) => ({
 					? `<div class="dissent-panel" hidden>${s.conflicts
 							.map(
 								(cf) =>
-									`<div class="dissent-row" style="--c:${LAYER_COLOR[cf.layer] ?? 'var(--cc-text-muted)'}"><div class="dissent-prov"><span class="layer">${esc(cf.layer)}</span> · ${esc(cf.updated ?? 'undated')}</div><p>${esc(cf.content)}</p></div>`,
+									`<div class="dissent-row" style="--c:${LAYER_COLOR[cf.layer] ?? 'var(--cc-text-muted)'}"><div class="dissent-prov"><span class="dswatch"></span><span class="layer">${esc(cf.layer)}</span> · ${esc(cf.updated ?? 'undated')}</div><p>${esc(cf.content)}</p></div>`,
 							)
 							.join('')}</div>`
 					: '';
 				return `<div class="band" style="--c:${color}">
 					<div class="band-top">
-						<span class="band-sec">${esc(s.label)}</span>
+						<span class="band-sec"><span class="dswatch"></span>${esc(s.label)}</span>
 						<span class="band-prov"><span class="layer">${esc(s.sourceLayer)}</span> · ${esc(s.sourceUpdated ?? 'undated')}</span>
 					</div>
 					<p class="band-content">${esc(s.content)}</p>
@@ -244,9 +244,10 @@ const concepts = demo.concepts.map((c) => ({
 		padding: 3rem 1.5rem 2rem;
 	}
 	.demo .kicker {
-		font-family: var(--cc-font-mono);
-		font-size: 0.8rem;
-		letter-spacing: 0.14em;
+		font-family: var(--cc-font-heading);
+		font-weight: 600;
+		font-size: 0.85rem;
+		letter-spacing: 0.02em;
 		text-transform: uppercase;
 		color: var(--cc-text-muted);
 		margin: 0 0 0.5rem;
@@ -304,8 +305,8 @@ const concepts = demo.concepts.map((c) => ({
 		gap: 0.5rem;
 	}
 	.demo .colhead {
-		font-family: var(--cc-font-mono);
-		font-size: 0.9rem;
+		font-family: var(--cc-font-heading);
+		font-size: 1rem;
 		font-weight: 700;
 		color: var(--cc-text);
 		margin: 0 0 1rem;
@@ -328,7 +329,6 @@ const concepts = demo.concepts.map((c) => ({
 	.demo .plane {
 		background: var(--cc-surface);
 		border: 1px solid var(--cc-border);
-		border-left: 4px solid var(--c);
 		border-radius: 9px;
 		padding: 0.75rem 0.9rem;
 	}
@@ -394,9 +394,10 @@ const concepts = demo.concepts.map((c) => ({
 		background: var(--cc-surface-raised);
 		border: 1px solid var(--cc-border);
 		color: var(--cc-text-body);
-		font-family: var(--cc-font-mono);
-		font-size: 0.75rem;
-		letter-spacing: 0.08em;
+		font-family: var(--cc-font-heading);
+		font-weight: 600;
+		font-size: 0.78rem;
+		letter-spacing: 0.02em;
 		padding: 0.9rem 0.5rem;
 		border-radius: 9px;
 		cursor: pointer;
@@ -419,7 +420,6 @@ const concepts = demo.concepts.map((c) => ({
 	.demo .band {
 		background: var(--cc-surface);
 		border: 1px solid var(--cc-border);
-		border-left: 4px solid var(--c);
 		border-radius: 9px;
 		padding: 0.75rem 0.9rem;
 		transition: opacity 0.4s ease, transform 0.4s ease;
@@ -436,9 +436,20 @@ const concepts = demo.concepts.map((c) => ({
 		margin-bottom: 0.4rem;
 	}
 	.demo .band-sec {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
 		font-family: var(--cc-font-mono);
 		font-weight: 700;
 		color: var(--cc-text);
+	}
+	/* Provenance key — a layer-colored swatch, not a side-stripe accent */
+	.demo .dswatch {
+		flex: none;
+		width: 10px;
+		height: 10px;
+		border-radius: 3px;
+		background: var(--c);
 	}
 	.demo .band-prov {
 		font-family: var(--cc-font-mono);
@@ -487,16 +498,23 @@ const concepts = demo.concepts.map((c) => ({
 		display: none;
 	}
 	.demo .dissent-row {
-		border-left: 3px solid var(--c);
+		border: 1px solid var(--cc-border);
 		background: var(--cc-surface-raised);
 		border-radius: 6px;
 		padding: 0.5rem 0.7rem;
 	}
 	.demo .dissent-prov {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.45rem;
 		font-family: var(--cc-font-mono);
 		font-size: 0.72rem;
 		color: var(--cc-text-muted);
 		margin-bottom: 0.25rem;
+	}
+	.demo .dissent-row .dswatch {
+		width: 9px;
+		height: 9px;
 	}
 	.demo .dissent-row p {
 		margin: 0;

@@ -320,8 +320,10 @@ Truncate `content` strings for display; never alter structure. Shape (verified):
 
 ### 11.5 Hero visual (§4.1) & /demo — storyboard and constraints
 
-Band anatomy (already shipped in the scaffold's static composite — keep it): 4px left
-border in the winning layer's color; mono section heading; provenance right-aligned
+Band anatomy: a leading layer-colored **swatch** (a small rounded square) before the
+section heading — *not* a side-stripe border (amended 2026-07-03 after the design
+critique flagged `border-left` accents; the swatch reads as a legend key and keeps the
+deterministic detector clean); mono section heading; provenance right-aligned
 (`layer · date`); conflict chip in `--cc-conflict` on conflicted bands.
 
 Phase-5 animation storyboard: (1) three layer planes stacked in precedence order, each

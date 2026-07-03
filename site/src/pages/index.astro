@@ -95,19 +95,19 @@ const steps = [
 		name: 'Stack',
 		icon: 'layers',
 		color: 'company',
-		body: 'Personal, team, and company knowledge live as separate layers — repo membership is read access, no new permission system.',
+		body: 'Each scope is its own repo: your drafts, the team\'s runbooks, company policy. If you can read the repo, you can read the layer. There is no second permission system to keep in sync.',
 	},
 	{
 		name: 'Resolve',
 		icon: 'merge',
 		color: 'team',
-		body: 'At read time the resolver merges the layers section by section. The higher layer wins per section; everything it stays silent on is inherited.',
+		body: 'Read a concept and the resolver assembles it a section at a time. The closest layer wins each section; whatever it doesn\'t mention falls through to the layer below.',
 	},
 	{
 		name: 'Serve',
 		icon: 'send',
 		color: 'personal',
-		body: 'Agents read one effective concept over MCP — each section tagged with the layer it came from and the date it was written.',
+		body: 'Agents pull the finished concept over MCP, every section tagged with the layer it came from and the day it was written.',
 	},
 ];
 
@@ -116,37 +116,37 @@ const features = [
 	{
 		icon: 'layers',
 		title: 'Section-level merge',
-		body: 'Higher layers win per section, not per document. An override replaces only what it speaks to; the rest is inherited from below.',
+		body: 'Layers merge a section at a time, not a file at a time. An override touches only the section it speaks to; everything else falls through from below.',
 	},
 	{
 		icon: 'compare',
 		title: 'Conflicts carry dates',
-		body: 'Where layers disagree, the dissenting value rides along with its layer and the date it was written — surfaced, not hidden.',
+		body: 'When two layers disagree, the losing value doesn\'t disappear. It travels with its layer and its date, so nobody reopens a call that was already made.',
 	},
 	{
 		icon: 'tag',
 		title: 'Provenance on every section',
-		body: 'Each section carries its sourceLayer and each frontmatter field its origin, so an agent can weight facts by trust level.',
+		body: 'Every section knows the layer it came from, and every field its origin. An agent can tell company policy from your Tuesday-night override before it acts on either.',
 	},
 	{
 		icon: 'share',
 		title: 'Foreign graphs stitch in',
-		body: 'A layer can be a foreign MCP knowledge graph, translated into OKF at read time and merged alongside your local bundles.',
+		body: 'A layer doesn\'t have to be markdown. Point one at a foreign MCP graph and ContextCake translates it to OKF as it reads, then merges it with everything else.',
 	},
 	{
 		icon: 'branch',
-		title: 'Write path captures from repos',
-		body: 'Repo signals are classified and written back as draft concepts — team candidates land directly, sensitive ones stage for review.',
+		title: 'Captured from real work',
+		body: 'It watches the work you\'re already doing, sorts the signal from the noise, and drafts concepts back. Safe ones land in the layer; anything sensitive waits for a human.',
 	},
 	{
 		icon: 'shield',
 		title: 'Zero dependencies',
-		body: 'The engine is plain Node.js ≥ 18. No npm install, no transitive packages, no install scripts — a supply chain you can audit.',
+		body: 'Plain Node 18 and nothing else. No npm install, no lockfile, no postinstall scripts — a supply chain you can read start to finish in an afternoon.',
 	},
 	{
 		icon: 'dashboard',
 		title: 'Playground',
-		body: 'A local canvas over the same engine: federated sources, live merges, and an N-way conflict resolver you can drive by hand.',
+		body: 'The same engine with a face on it: wire up sources, watch them merge in real time, and settle an N-way conflict by hand.',
 	},
 ];
 
@@ -180,9 +180,10 @@ const mcpTools = [
 			<div class="hero-copy">
 				<h1>Every layer of what your team knows —<br />one effective view.</h1>
 				<p class="sub">
-					ContextCake stitches personal, team, and company knowledge into one graph your AI
-					agents can read. Higher layer wins <em>per section</em>, nothing is lost, and where
-					layers disagree the conflict is surfaced — not hidden.
+					Your notes, your team's runbooks, and company policy rarely line up, and your agent
+					only ever reads one of them. ContextCake stitches all three into one graph: the
+					closest layer wins <em>each section</em>, the rest carries through untouched, and
+					wherever they disagree the agent sees both — with dates.
 				</p>
 				{/* Distribution decision 2026-07-02: clone-and-run, no npm (spec.md Open Questions) */}
 				<CopyCommand command="git clone https://github.com/siracusa5/context-cake.git" />
@@ -195,7 +196,7 @@ const mcpTools = [
 
 			<figure
 				class="composite"
-				aria-label="The concept decisions/primary-db, resolved: three layers stacked in precedence order, resolving into one composite where each section is striped by the layer that won it, with provenance and conflicts."
+				aria-label="The concept decisions/primary-db, resolved: three layers stacked in precedence order, resolving into one composite where each section is marked with the layer that won it, with provenance and conflicts."
 			>
 				<figcaption><span class="dot" aria-hidden="true"></span>decisions/primary-db — resolved</figcaption>
 				<div class="stack" aria-hidden="true">
@@ -214,7 +215,7 @@ const mcpTools = [
 					{
 						heroBands.map((b) => (
 							<div class="band" style={`--band: ${layerColor[b.layer]}`}>
-								<span class="section">{b.label}</span>
+								<span class="section"><span class="swatch" aria-hidden="true" />{b.label}</span>
 								<span class="prov">
 									<span class="layer">{b.layer}</span> · {b.updated}
 									{b.conflict && (
@@ -237,22 +238,22 @@ const mcpTools = [
 				<div class="beat">
 					<dt>Scattered</dt>
 					<dd>
-						Your team's knowledge lives in repo docs, wikis, and heads. No two sources agree on
-						what's current, and nobody knows which one to trust.
+						It lives in repo READMEs, a wiki nobody has opened in months, and three people's
+						heads. Ask two of those sources what's current and you'll get two answers.
 					</dd>
 				</div>
 				<div class="beat">
 					<dt>Agents read stale</dt>
 					<dd>
-						An AI agent reading one source gets one layer's truth — dated, unattributed, and
-						blind to the policy or decision that supersedes it.
+						Point an agent at one document and it answers from that document alone. It has no
+						idea a newer decision, one layer up, already overruled it.
 					</dd>
 				</div>
 				<div class="beat">
 					<dt>Overwriting loses the dissent</dt>
 					<dd>
-						Merging docs by replacement destroys the minority position — the objection you'll
-						need to find again at the next incident.
+						The usual fix is to flatten everything into a single doc. That quietly erases the
+						objection you'll go looking for the next time something breaks.
 					</dd>
 				</div>
 			</dl>
@@ -300,8 +301,8 @@ const mcpTools = [
 		<section class="agents">
 			<h2>Speaks MCP. Answers with provenance.</h2>
 			<p class="agents-lede">
-				The MCP server exposes the resolved cascade to any agent. Every <code>read_file</code>{' '}
-				response carries who said what, when — and where they disagree.
+				Any agent that speaks MCP can query the resolved graph. Every <code>read_file</code>{' '}
+				answer comes back with who said what, when, and where the layers disagree.
 			</p>
 			<div class="agents-body">
 				<table class="tools">
@@ -481,7 +482,7 @@ npm run playground</code></pre>
 		justify-content: space-between;
 		align-items: baseline;
 		gap: 1rem;
-		border-left: 4px solid var(--band);
+		border: 1px solid var(--cc-border);
 		background: var(--cc-surface-raised);
 		border-radius: 6px;
 		padding: 0.6rem 0.9rem;
@@ -489,7 +490,18 @@ npm run playground</code></pre>
 		font-size: 0.9rem;
 	}
 	.band .section {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.55rem;
 		color: var(--cc-text);
+	}
+	/* Provenance key: a layer-colored swatch, not a side-stripe accent */
+	.band .swatch {
+		flex: none;
+		width: 10px;
+		height: 10px;
+		border-radius: 3px;
+		background: var(--band);
 	}
 	.band .prov {
 		color: var(--cc-text-body);
@@ -532,8 +544,8 @@ npm run playground</code></pre>
 		align-items: baseline;
 	}
 	.beat dt {
-		font-family: var(--cc-font-mono);
-		font-size: 1.05rem;
+		font-family: var(--cc-font-heading);
+		font-size: 1.1rem;
 		font-weight: 700;
 		color: var(--cc-text);
 	}
@@ -591,8 +603,9 @@ npm run playground</code></pre>
 		margin: 2rem 0 0;
 	}
 	.how-cta a {
-		font-family: var(--cc-font-mono);
-		font-size: 0.95rem;
+		font-family: var(--cc-font-heading);
+		font-weight: 600;
+		font-size: 1rem;
 		color: var(--cc-layer-team);
 		text-decoration: none;
 	}
@@ -652,10 +665,10 @@ npm run playground</code></pre>
 		vertical-align: top;
 	}
 	.tools th {
-		font-family: var(--cc-font-mono);
-		font-size: 0.75rem;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
+		font-family: var(--cc-font-heading);
+		font-weight: 600;
+		font-size: 0.8rem;
+		letter-spacing: 0.02em;
 		color: var(--cc-text-muted);
 	}
 	.tools td code {
