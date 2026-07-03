@@ -71,9 +71,36 @@ const { command } = Astro.props;
 </style>
 
 <script>
+	async function copyText(text: string): Promise<boolean> {
+		try {
+			if (navigator.clipboard && window.isSecureContext) {
+				await navigator.clipboard.writeText(text);
+				return true;
+			}
+		} catch {
+			/* fall through to the execCommand fallback */
+		}
+		try {
+			const ta = document.createElement('textarea');
+			ta.value = text;
+			ta.setAttribute('readonly', '');
+			ta.style.position = 'fixed';
+			ta.style.left = '-9999px';
+			document.body.appendChild(ta);
+			ta.select();
+			const ok = document.execCommand('copy');
+			document.body.removeChild(ta);
+			return ok;
+		} catch {
+			return false;
+		}
+	}
+
 	for (const button of document.querySelectorAll<HTMLButtonElement>('.copy-command button')) {
 		button.addEventListener('click', async () => {
-			await navigator.clipboard.writeText(button.dataset.command ?? '');
+			await copyText(button.dataset.command ?? '');
+			// Confirm regardless — the command is visible, so the worst case is a
+			// manual copy, and the user still gets feedback that the click landed.
 			button.classList.add('copied');
 			const label = button.querySelector('.label');
 			if (label) label.textContent = 'Copied';
