@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# --- Under reconstruction (post core re-architecture) ------------------------
+# Asserts the removed --shadow drift output. Fail fast instead of erroring on the
+# flag. See demo/RUNBOOK.md and specs/contextcake-core/design.md §10; delete this
+# guard when the demo is reconciled with the current engine.
+cat >&2 <<'NOTE'
+demo/verify.sh is under reconstruction and does not run as-is (it asserts the
+removed --shadow drift output). For a working check, run: npm test
+NOTE
+exit 1
+# -----------------------------------------------------------------------------
+
 # Asserts the curated demo data resolves exactly as the RUNBOOK scripts it.
 # Run this BEFORE any live demo. Mirrors resolver-test.sh.
 
