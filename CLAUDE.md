@@ -38,9 +38,10 @@ cd site && npm install && npm run dev    # http://localhost:4321
 cd site && npm run build                 # site CI gate — must exit 0
 
 # Seed + verify the team demo (then see demo/RUNBOOK.md for the live script)
-# NOTE: currently BROKEN — demo/setup.sh + verify.sh use the removed --hash/--shadow
-# flags. Pending reconciliation with the core re-arch (see specs/contextcake-core/design.md §10).
-npm run demo:verify
+# NOTE: under reconstruction — demo/setup.sh + verify.sh relied on the removed
+# --hash/--shadow drift subsystem; they now fail fast with a pointer to the working
+# playground. Rebuild tracked against specs/contextcake-core/design.md §10.
+npm run demo:verify   # prints the reconstruction notice and exits 1 (by design)
 ```
 
 ## Architecture

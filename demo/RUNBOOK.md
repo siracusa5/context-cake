@@ -1,5 +1,13 @@
 # ContextCake Team Demo — Runbook
 
+> [!WARNING]
+> **Under reconstruction — does not run as-is.** This runbook predates the core
+> re-architecture: the `--hash` / `--shadow` drift subsystem that Beat 4 and the
+> `setup.sh` / `verify.sh` scripts rely on was removed. Staleness is now surfaced via
+> per-section `conflicts[]` + last-updated dates (see `specs/contextcake-core/design.md` §10).
+> For a working demo, use the interactive playground (`npm run playground`) or resolve the
+> seeded bundles directly: `node resolver.mjs --manifest layers.json --concept decisions/primary-db`.
+
 **Target time:** ~4 minutes, 5 beats
 **Last updated:** 2026-06-24
 

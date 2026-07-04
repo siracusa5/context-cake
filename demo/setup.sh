@@ -1,6 +1,26 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# --- Under reconstruction (post core re-architecture) ------------------------
+# This script seeds the removed --hash / --shadow drift subsystem. Staleness is
+# now surfaced via per-section conflicts[] + last-updated dates. Rather than crash
+# on an unknown flag, fail fast with a pointer to what works. Rebuild is tracked
+# against demo/RUNBOOK.md and specs/contextcake-core/design.md §10; delete this
+# guard when the demo is reconciled with the current engine.
+cat >&2 <<'NOTE'
+demo/setup.sh is under reconstruction and does not run as-is.
+
+The --hash / --shadow drift subsystem it seeds was removed in the core
+re-architecture; staleness is now per-section conflicts[] + last-updated dates.
+
+For a working demo:
+  • Interactive playground:  npm run playground     (see playground/README.md)
+  • Resolve the seeded bundles directly:
+      node resolver.mjs --manifest layers.json --concept decisions/primary-db
+NOTE
+exit 1
+# -----------------------------------------------------------------------------
+
 # Seeds the three curated OKF layer bundles for the demo and bakes the stale
 # shadow (Team's Language exemption recorded against the Company base BEFORE the
 # org tightened the standard). Idempotent: wipes and recreates demo/layers/.
