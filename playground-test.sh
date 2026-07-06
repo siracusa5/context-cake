@@ -3,7 +3,7 @@
 # silently regress. Network-free (no real git clone). Run from the repo root.
 set -uo pipefail
 
-PORT=8799
+PORT="${PORT:-8799}"
 BASE="http://127.0.0.1:$PORT"
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 TMP="$(mktemp -d)"

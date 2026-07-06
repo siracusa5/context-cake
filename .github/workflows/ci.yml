@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  engine:
+    name: engine
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Run root test suite
+        run: npm test
+
+  console:
+    name: console
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: console
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: console/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+  site:
+    name: site
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: site
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+  required:
+    name: required
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    needs:
+      - engine
+      - console
+      - site
+
+    steps:
+      - name: Enforce required job results
+        run: |
+          if [ "${{ needs.engine.result }}" != "success" ] || \
+             [ "${{ needs.console.result }}" != "success" ] || \
+             [ "${{ needs.site.result }}" != "success" ]; then
+            echo "At least one required CI job did not succeed." >&2
+            exit 1
+          fi

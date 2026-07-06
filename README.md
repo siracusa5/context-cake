@@ -82,6 +82,26 @@ npm run dev        # http://localhost:5173
 
 See [`console/README.md`](console/README.md) for the full tour.
 
+## Validation
+
+The merge gate runs the root engine tests plus the independent `console/` and
+`site/` builds:
+
+```bash
+npm test
+
+cd console
+npm ci
+npm run typecheck
+npm run build
+
+cd ../site
+npm ci
+npm run build
+```
+
+The root stays dependency-free. Only `console/` and `site/` run `npm ci`.
+
 ## Release surfaces
 
 This repo has more than one public-facing surface, and "live" is not a single

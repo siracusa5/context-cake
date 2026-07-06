@@ -18,15 +18,20 @@ everywhere.
 
 The code is on `main`. This is a source-control state only.
 
+Merge safety is enforced separately by the repository CI workflow. The intended
+required check is `CI / required`, which succeeds only when the root engine
+tests, `console/` build, and `site/` build all pass.
+
 ### `Preview`
 
 The code is published somewhere non-production for review.
 
 - For `console/`, the repo currently has a GitHub Actions preview workflow on
-  pushes to `main`, deploying to a Cloudflare Pages preview alias when the
-  Cloudflare secrets are configured.
+  pushes to `main`, validating the build first and then deploying to a
+  Cloudflare Pages preview alias when the Cloudflare secrets are configured.
 - For `site/`, production deploy is automated on `main` changes under `site/`;
-  use manual dispatch if a redeploy is needed without a source change.
+  the workflow validates and rebuilds `site/` before publishing. Use manual
+  dispatch if a redeploy is needed without a source change.
 
 ### `Live`
 
@@ -34,7 +39,8 @@ The production URL that users should treat as canonical is serving the new
 version.
 
 - For `console/`, that means the production Pages deployment ran successfully.
-  A merged PR alone does not satisfy this.
+  A merged PR alone does not satisfy this. The production workflow also checks
+  that the `console-v*` tag points at a commit already reachable from `main`.
 - For `site/`, that means the `Site Production Deploy` workflow completed, or
   an equivalent manual Cloudflare Pages deploy completed, and the production
   domain serves the intended build.
@@ -56,17 +62,18 @@ Do not answer "yes" without naming the surface and the release state.
 
 1. Merge the PR to `main`.
 2. Verify local `npm run typecheck` and `npm run build` in `console/`.
-3. For preview: confirm the `Console Preview Deploy` workflow ran and a Pages
-   preview URL exists.
-4. For production: push a `console-v*` tag or run the manual Cloudflare Pages
-   deploy command from `console/`.
+3. For preview: confirm the `Console Preview Deploy` workflow ran, passed its
+   validation job, and produced a Pages preview URL.
+4. For production: push a `console-v*` tag that points at a commit already on
+   `main`, or run the manual Cloudflare Pages deploy command from `console/`.
 5. Confirm the production Pages URL serves the intended build.
 
 ### `site/`
 
 1. Merge the PR to `main`.
 2. Verify local `npm run build` in `site/`.
-3. Confirm the `Site Production Deploy` workflow completed, or run it manually.
+3. Confirm the `Site Production Deploy` workflow completed its validation and
+   deploy jobs, or run it manually.
 4. Confirm the canonical production domain serves the intended build.
 
 ### engine / MCP / CLI
