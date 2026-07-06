@@ -1,0 +1,10 @@
+{
+  "name": "data-analytics-team-pack",
+  "version": "0.1.0",
+  "description": "ContextCake Pack for data and analytics teams.",
+  "author": {
+    "name": "ContextCake"
+  },
+  "license": "UNLICENSED",
+  "keywords": ["contextcake", "analytics", "data-team", "okf"]
+}

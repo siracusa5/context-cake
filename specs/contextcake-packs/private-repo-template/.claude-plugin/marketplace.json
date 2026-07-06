@@ -1,0 +1,12 @@
+{
+  "name": "contextcake-packs",
+  "displayName": "ContextCake Packs",
+  "description": "Private marketplace for paid ContextCake pack plugins.",
+  "plugins": [
+    {
+      "name": "data-analytics-team-pack",
+      "description": "Reusable context for data and analytics teams scoping requests, validating reports, and writing insight summaries.",
+      "source": "./packs/data-analytics-team"
+    }
+  ]
+}

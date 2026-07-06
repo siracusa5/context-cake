@@ -1,0 +1,144 @@
+---
+import Base from '../../layouts/Base.astro';
+---
+
+<Base
+	title="ContextCake Packs - portable context for real team workflows"
+	description="Profession-specific ContextCake packs give small teams reusable AI context they can inspect, edit, and carry across tools."
+>
+	<main class="packs-index">
+		<section class="intro">
+			<p class="eyebrow">ContextCake Packs</p>
+			<h1>Portable context kits for teams that repeat the same work in every AI tool.</h1>
+			<p>
+				Packs are plain-file bundles with workflows, templates, examples, and tool guidance.
+				They sit under the ContextCake brand, but the first pack is sold and fulfilled
+				separately from the open-source engine.
+			</p>
+		</section>
+
+		<section class="featured" aria-labelledby="featured-pack">
+			<div class="pack-marker" aria-hidden="true">
+				<span></span>
+				<span></span>
+				<span></span>
+			</div>
+			<div>
+				<p class="status">First pack</p>
+				<h2 id="featured-pack">Data & Analytics Teams</h2>
+				<p>
+					For the recurring path from stakeholder request to clarified spec, validated build,
+					and insight summary.
+				</p>
+			</div>
+			<a href="/packs/data-analytics-teams">View pack</a>
+		</section>
+
+		<section class="bench" aria-labelledby="bench-title">
+			<h2 id="bench-title">On the bench</h2>
+			<p>
+				Grant teams, GovCon/RFP, HR, and Insurance remain candidate packs. They wait until
+				there is real design-partner access instead of only a paper score.
+			</p>
+		</section>
+	</main>
+</Base>
+
+<style>
+	.packs-index {
+		max-width: 72rem;
+		margin: 0 auto;
+		padding: 4rem 1.5rem 2rem;
+	}
+	.intro {
+		max-width: 54rem;
+	}
+	.eyebrow,
+	.status {
+		margin: 0 0 0.75rem;
+		color: var(--cc-layer-team);
+		font-family: var(--cc-font-mono);
+		font-size: 0.78rem;
+		font-weight: 700;
+		letter-spacing: 0;
+		text-transform: uppercase;
+	}
+	h1 {
+		max-width: 12ch;
+		margin: 0;
+		font-size: clamp(3.1rem, 8vw, 6.8rem);
+		line-height: 0.94;
+		letter-spacing: 0;
+	}
+	.intro p:last-child,
+	.bench p,
+	.featured p {
+		max-width: 62ch;
+		color: var(--cc-text-body);
+		font-size: 1.12rem;
+	}
+	.featured {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr) auto;
+		align-items: center;
+		gap: 1.5rem;
+		margin-top: 4rem;
+		padding: 1.5rem 0;
+		border-top: 1px solid var(--cc-border);
+		border-bottom: 1px solid var(--cc-border);
+	}
+	.pack-marker {
+		display: grid;
+		gap: 0.35rem;
+		width: 4rem;
+	}
+	.pack-marker span {
+		display: block;
+		height: 0.85rem;
+		border-radius: 3px;
+	}
+	.pack-marker span:nth-child(1) {
+		background: var(--cc-layer-personal);
+		margin-left: 0.8rem;
+	}
+	.pack-marker span:nth-child(2) {
+		background: var(--cc-layer-team);
+	}
+	.pack-marker span:nth-child(3) {
+		background: var(--cc-layer-company);
+		margin-left: 0.4rem;
+	}
+	.featured h2,
+	.bench h2 {
+		margin: 0;
+		font-size: clamp(2rem, 4vw, 3.2rem);
+		line-height: 1;
+		letter-spacing: 0;
+	}
+	.featured a {
+		display: inline-flex;
+		align-items: center;
+		min-height: 44px;
+		padding: 0 1rem;
+		border: 1px solid var(--cc-cta);
+		border-radius: 6px;
+		color: var(--cc-canvas);
+		background: var(--cc-cta);
+		font-weight: 700;
+		text-decoration: none;
+		white-space: nowrap;
+	}
+	.bench {
+		margin-top: 4rem;
+		max-width: 44rem;
+	}
+	@media (max-width: 720px) {
+		.featured {
+			grid-template-columns: 1fr;
+		}
+		.featured a {
+			justify-content: center;
+			width: fit-content;
+		}
+	}
+</style>
