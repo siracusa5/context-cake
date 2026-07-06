@@ -75,6 +75,7 @@ Key files:
 | `playground/` | Interactive playground: dependency-free HTTP server (`server.mjs`) over the engine + canvas/files/sources UI, merge resolver, per-source token budget. See `playground/README.md`. |
 | `console/` | React + Vite + TS web UI (ContextCake Console) — its own npm package with a build step, deployed to Cloudflare Pages. See `console/README.md` + `console/CLAUDE.md`. |
 | `site/` | Public product site (Astro + Starlight). Spec + boundaries: `specs/contextcake-site/`. Site deps live in `site/package.json` only — the engine stays dependency-free. |
+| `specs/contextcake-packs/` | Public spec and private-repo template for ContextCake Packs, a separately sold product line whose paid content lives outside this public-bound engine repo. |
 | `docs/architecture.md` | Historical design spec (partially superseded — see note at top) |
 
 ## Gotchas

@@ -1,0 +1,26 @@
+id: data-analytics-team
+name: "ContextCake Pack: Data & Analytics Teams"
+version: "0.1.0"
+target_profession: "Data and analytics teams"
+hero_workflow: "stakeholder request -> clarified spec -> build and validate -> insight summary"
+update_cadence: "monthly"
+supported_surfaces:
+  - plain-files
+  - claude-code-plugin
+  - chatgpt-knowledge-upload
+  - cursor
+  - copilot
+required_reading_order:
+  - overview/pack-purpose.md
+  - workflows/stakeholder-request-to-insight.md
+  - templates/clarified-spec-template.md
+included_modules:
+  - overview
+  - glossary
+  - workflows
+  - templates
+  - examples
+  - prompt-guides
+  - policies-and-rules
+  - tool-guides
+overlay_instructions: "Keep local team overrides outside the installed pack files."
