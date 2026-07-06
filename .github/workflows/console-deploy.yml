@@ -24,13 +24,24 @@ defaults:
     working-directory: console
 
 jobs:
-  deploy:
-    name: Build and deploy console production
+  validate:
+    name: validate
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Confirm tagged commit is on main
+        working-directory: .
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "console production tags must point at a commit already merged to main." >&2
+            exit 1
+          fi
 
       - name: Use Node.js
         uses: actions/setup-node@v4
@@ -47,6 +58,29 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: console-dist
+          path: console/dist
+          retention-days: 1
+
+  deploy:
+    name: deploy
+    runs-on: ubuntu-latest
+    needs:
+      - validate
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: console-dist
+          path: console/dist
 
       - name: Deploy Cloudflare Pages production
         id: deploy
