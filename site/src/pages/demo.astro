@@ -1,7 +1,10 @@
 ---
 import Base from '../layouts/Base.astro';
 
-const demoUrl = '/demo-app/';
+// Point at index.html explicitly: Cloudflare Pages resolves the directory, but
+// `astro dev` does not serve a trailing-slash directory index, so `/demo-app/`
+// 404s the iframe in local dev.
+const demoUrl = '/demo-app/index.html';
 
 const narrativePoints = [
 	{
