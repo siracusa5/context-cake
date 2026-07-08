@@ -1277,6 +1277,21 @@ function setAddKind(kind) {
   document.getElementById("addKind").querySelectorAll("button").forEach((b) =>
     b.classList.toggle("is-active", b.dataset.kind === kind));
   document.getElementById("addFields").innerHTML = addFieldsHtml(kind);
+  updateAddSubmitGate();
+  if (kind === "mcp") {
+    document.getElementById("af-mcp-trust")?.addEventListener("change", updateAddSubmitGate);
+  }
+}
+
+// MCP sources spawn an arbitrary command every resolve — mirror the setup
+// wizard's trust-boundary confirm here so the two flows never diverge on
+// this security-critical gate. Disables the submit button until checked.
+function updateAddSubmitGate() {
+  const submit = document.getElementById("addSubmit");
+  if (!submit) return;
+  if (addKind !== "mcp") { submit.disabled = false; return; }
+  const trust = document.getElementById("af-mcp-trust");
+  submit.disabled = !(trust && trust.checked);
 }
 
 function addFieldsHtml(kind) {
@@ -1295,11 +1310,19 @@ function addFieldsHtml(kind) {
   }
   return `${common}
     <div class="field field--wide"><label for="af-command">Command <span class="req">· required</span></label><input id="af-command" class="mono" placeholder="node"></div>
-    <div class="field field--wide"><label for="af-args">Arguments</label><input id="af-args" class="mono" placeholder="examples/mock-context-source.mjs"><span class="field__hint">This source spawns the command and translates its graph to OKF. Only add servers you trust.</span></div>`;
+    <div class="field field--wide"><label for="af-args">Arguments</label><input id="af-args" class="mono" placeholder="examples/mock-context-source.mjs"><span class="field__hint">This source spawns the command and translates its graph to OKF. Only add servers you trust.</span></div>
+    <div class="field field--wide field--warn">
+      <p class="field__warning">An MCP source runs a command on your machine every time the cascade resolves. Only add servers you trust — a manifest you didn't author can run arbitrary code as you.</p>
+      <label class="field__confirm"><input id="af-mcp-trust" type="checkbox"> I trust this command</label>
+    </div>`;
 }
 
 async function submitAddSource(e) {
   e.preventDefault();
+  if (addKind === "mcp" && !document.getElementById("af-mcp-trust")?.checked) {
+    setAddHint("Confirm you trust this command before adding an MCP source.", true);
+    return;
+  }
   const body = { kind: addKind, name: fval("af-name"), level: Number(fval("af-level")) || 1 };
   if (addKind === "local") body.path = fval("af-path");
   if (addKind === "github") { body.repo = fval("af-repo"); body.ref = fval("af-ref"); body.subdir = fval("af-subdir"); }
