@@ -112,6 +112,7 @@ const renderedFiles = await Promise.all(
 					hidden={file.renderedHtml != null}
 					set:html={file.sourceHtml}
 				/>
+				<span class="scroll-fade" aria-hidden="true"></span>
 			</article>
 		))}
 	</div>
@@ -210,6 +211,7 @@ const renderedFiles = await Promise.all(
 		overflow-wrap: anywhere;
 	}
 	.preview-pane {
+		position: relative;
 		overflow: hidden;
 		min-width: 0;
 	}
@@ -286,6 +288,24 @@ const renderedFiles = await Promise.all(
 	}
 	.preview-body[hidden] {
 		display: none;
+	}
+	.scroll-fade {
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		height: 2.25rem;
+		background: linear-gradient(
+			to bottom,
+			transparent,
+			color-mix(in srgb, var(--cc-surface-solid) 92%, transparent)
+		);
+		pointer-events: none;
+		opacity: 0;
+		transition: opacity var(--cc-transition);
+	}
+	.preview-pane[data-overflowing] .scroll-fade {
+		opacity: 1;
 	}
 	.view-source :global(.shiki) {
 		margin: 0;
@@ -423,11 +443,44 @@ const renderedFiles = await Promise.all(
 		return anc;
 	}
 
+	function updateOverflow(pane: HTMLElement) {
+		const body = pane.querySelector<HTMLElement>('.preview-body:not([hidden])');
+		if (!body) {
+			pane.removeAttribute('data-overflowing');
+			return;
+		}
+		const hasMoreBelow = body.scrollHeight - body.clientHeight - body.scrollTop > 4;
+		pane.toggleAttribute('data-overflowing', hasMoreBelow);
+	}
+
+	// Coalesce scroll/resize bursts to one measurement per frame per pane.
+	const overflowScheduled = new WeakSet<HTMLElement>();
+	function scheduleOverflow(pane: HTMLElement) {
+		if (overflowScheduled.has(pane)) return;
+		overflowScheduled.add(pane);
+		requestAnimationFrame(() => {
+			overflowScheduled.delete(pane);
+			updateOverflow(pane);
+		});
+	}
+
 	for (const explorer of document.querySelectorAll('[data-pack-explorer]')) {
 		const rows = Array.from(explorer.querySelectorAll<HTMLElement>('[data-tree-row]'));
 		const folders = Array.from(explorer.querySelectorAll<HTMLElement>('[data-folder-path]'));
 		const triggers = explorer.querySelectorAll<HTMLElement>('[data-file-trigger]');
 		const panes = explorer.querySelectorAll<HTMLElement>('[data-file-panel]');
+
+		for (const pane of panes) {
+			for (const body of pane.querySelectorAll<HTMLElement>('.preview-body')) {
+				body.addEventListener('scroll', () => scheduleOverflow(pane), { passive: true });
+			}
+			updateOverflow(pane);
+		}
+		window.addEventListener('resize', () => {
+			// Only the visible pane's fade can change on resize.
+			const active = explorer.querySelector<HTMLElement>('[data-file-panel]:not([hidden])');
+			if (active) scheduleOverflow(active);
+		});
 
 		// --- collapsible folders ---
 		const expanded = new Set<string>(folders.map((f) => f.dataset.folderPath || ''));
@@ -458,6 +511,7 @@ const renderedFiles = await Promise.all(
 				const isActive = pane.getAttribute('data-file-panel') === target;
 				pane.toggleAttribute('hidden', !isActive);
 				pane.classList.toggle('active', isActive);
+				if (isActive) updateOverflow(pane);
 			}
 		}
 		for (const trigger of triggers) {
@@ -479,6 +533,7 @@ const renderedFiles = await Promise.all(
 				for (const btn of pane.querySelectorAll<HTMLElement>('.view-btn')) {
 					btn.setAttribute('aria-pressed', btn.dataset.view === mode ? 'true' : 'false');
 				}
+				updateOverflow(pane);
 			}
 		}
 		for (const btn of explorer.querySelectorAll<HTMLElement>('.view-btn')) {

@@ -27,17 +27,30 @@ diagrams, OG images).
 
 ### Tokens (`site/src/styles/tokens.css` — single source of truth)
 
+> **Amended 2026-07-07:** this table now records the *shipped* `tokens.css` values —
+> the palette drifted warm during the two /impeccable critique rounds and is ratified
+> as canon (UI-revamp decision D4). Console and playground adopt the same layer-color
+> semantics. The pre-launch slate/indigo values are superseded.
+
 | Token | Value | Role |
 |---|---|---|
-| `--cc-canvas` | `#0F172A` | page background (dark-first) |
-| `--cc-surface` | `#1E293B` | cards, code blocks |
-| `--cc-text` | `#F8FAFC` | primary text |
-| `--cc-text-muted` | `#94A3B8` | secondary text (large sizes only; body muted uses `#CBD5E1`) |
-| `--cc-layer-company` | `#6366F1` | Company stratum (indigo, level 0) |
-| `--cc-layer-team` | `#14B8A6` | Team stratum (teal, level 2) |
-| `--cc-layer-personal` | `#F59E0B` | Personal stratum (amber, level 3) |
-| `--cc-conflict` | `#F87171` | conflict/dissent accent — sparing |
-| `--cc-cta` | `#22C55E` | primary CTA |
+| `--cc-canvas` | `#10110f` | page background (dark-first, warm near-black) |
+| `--cc-surface` | `rgba(30,31,28,0.78)` | cards, code blocks (translucent) |
+| `--cc-surface-solid` | `#1e1f1c` | opaque surface |
+| `--cc-surface-raised` | `#23241f` | raised panels |
+| `--cc-surface-soft` | `rgba(243,239,230,0.055)` | faint fill |
+| `--cc-border` / `--cc-border-strong` | `rgba(235,226,207,0.11)` / `0.2` | hairlines |
+| `--cc-text` | `#f3efe6` | primary text (warm bone) |
+| `--cc-text-body` | `#d2ccc0` | body text |
+| `--cc-text-muted` | `#a9a296` | secondary (large sizes / labels only) |
+| `--cc-text-faint` | `#80796f` | faint / disabled |
+| `--cc-layer-personal` | `#d9ab53` | Personal stratum (amber, level 3, top) |
+| `--cc-layer-team` | `#8dc3a8` | Team stratum (sage-teal, level 2) |
+| `--cc-layer-company` | `#8bbad1` | Company stratum (blue, level 0, base) |
+| `--cc-conflict` | `#e07a56` | conflict/dissent accent — sparing |
+| `--cc-cta` / `--cc-cta-hover` | `#e8e0d0` / `#f3efe6` | primary CTA (bone, `--cc-on-cta` `#11130f`) |
+| `--cc-radius-sm…xl` | `10 / 16 / 22 / 30px` | shape scale |
+| `--cc-transition` | `200ms cubic-bezier(0.16,1,0.3,1)` | motion |
 
 Light mode is required for docs (Starlight default toggle); marketing pages may stay
 dark-only. Amber-on-dark and all text pairs must pass 4.5:1 — verify, don't assume.

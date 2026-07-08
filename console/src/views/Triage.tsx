@@ -14,6 +14,19 @@ export function Triage() {
   const curList = filtered(triageTab)
   const selSig = signals.find((s) => s.id === selSignal) || null
 
+  if (signals.length === 0) {
+    return (
+      <div style={css('display:grid; place-items:center; min-height:320px; background:#FBFAF6; border:1px dashed #C3C1B8; border-radius:13px; padding:32px; text-align:center;')}>
+        <div style={css('max-width:380px;')}>
+          <div style={css('font-weight:600; font-size:14.5px; color:#1A1915; margin-bottom:8px;')}>No captured signals</div>
+          <p style={css('margin:0; font-size:12.5px; color:#57564F; line-height:1.5;')}>
+            Live triage is read-only (D6). Run <code style={css(`font-family:${MONO}; font-size:11.5px; padding:1px 5px; background:#F1EFE7; border:1px solid #D8D6CC; border-radius:5px;`)}>ingest.mjs</code> to populate the review queue.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div>
       {/* tabs */}
@@ -28,13 +41,13 @@ export function Triage() {
               style={css(`display:flex; align-items:center; gap:8px; border:none; border-radius:8px; padding:8px 15px; font:inherit; font-weight:${active ? 600 : 500}; font-size:13px; cursor:pointer; background:${active ? '#FBFAF6' : 'transparent'}; color:${active ? C.ink : C.caption}; box-shadow:${active ? '0 1px 2px rgba(26,25,21,0.08)' : 'none'};`)}
             >
               <span>{label}</span>
-              <span style={css(`font-family:${MONO}; font-size:11px; color:${active ? C.caption : C.faint};`)}>{count}</span>
+              <span style={css(`font-family:${MONO}; font-size:11px; color:${C.caption};`)}>{count}</span>
             </button>
           )
         })}
       </div>
 
-      <div style={css('display:grid; grid-template-columns:minmax(0,1fr) 400px; gap:20px; align-items:start;')}>
+      <div className="cc-triage-grid">
         <div style={css('display:flex; flex-direction:column; gap:11px; min-width:0;')}>
           {curList.length === 0 && (
             <div style={css('display:grid; place-items:center; min-height:220px; border:1px dashed #C3C1B8; border-radius:12px; color:#8A8A82; font-size:13px;')}>Nothing here — inbox zero.</div>
@@ -73,7 +86,7 @@ export function Triage() {
         </div>
 
         {/* decision panel */}
-        <aside style={css('position:sticky; top:88px; display:flex; flex-direction:column; gap:0;')}>
+        <aside className="cc-triage-panel" style={css('position:sticky; top:88px; display:flex; flex-direction:column; gap:0;')}>
           {selSig ? (() => {
             const r = rc(selSig.route)
             return (
@@ -109,8 +122,8 @@ export function Triage() {
                         const isT = selSig.landLayer === id
                         return (
                           <div key={id} style={css(`display:flex; align-items:center; gap:11px; padding:9px 12px; background:${isT ? col.fill : '#FFFFFF'}; border:1px solid ${isT ? col.stroke : C.line}; border-radius:9px;`)}>
-                            <div style={css(`display:grid; place-items:center; width:26px; height:26px; border-radius:999px; background:${isT ? '#FFFFFF' : C.surface}; border:2px solid ${isT ? col.strokeE : C.line}; color:${isT ? col.text : C.faint}; font-family:${MONO}; font-weight:600; font-size:12px; flex:0 0 auto;`)}>{L.level}</div>
-                            <span style={css(`font-weight:${isT ? 600 : 500}; font-size:13px; color:${isT ? col.text : C.faint};`)}>{L.name}</span>
+                            <div style={css(`display:grid; place-items:center; width:26px; height:26px; border-radius:999px; background:${isT ? '#FFFFFF' : C.surface}; border:2px solid ${isT ? col.strokeE : C.line}; color:${isT ? col.text : C.caption}; font-family:${MONO}; font-weight:600; font-size:12px; flex:0 0 auto;`)}>{L.level}</div>
+                            <span style={css(`font-weight:${isT ? 600 : 500}; font-size:13px; color:${isT ? col.text : C.caption};`)}>{L.name}</span>
                             {isT && <code style={css(`margin-left:auto; font-family:${MONO}; font-size:11px; color:${col.text};`)}>{selSig.landPath}</code>}
                           </div>
                         )

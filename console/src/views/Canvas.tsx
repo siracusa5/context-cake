@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { C, css, lc, MONO, type LayerId } from '../theme'
-import { concepts, layerLevel, layers, type Concept } from '../data'
+import { layerLevel, layers, type Concept } from '../data'
 import { LayerChip } from '../components/LayerChip'
 import { ConceptDetail } from '../components/ConceptDetail'
 import { useStore } from '../store'
@@ -23,22 +23,24 @@ const primaryLayer = (c: Concept): LayerId =>
 interface NodePos { c: Concept; x: number; y: number; conflict: boolean }
 interface GhostPos { key: string; parent: NodePos; layer: LayerId; value: string; x: number; y: number }
 
-function computeLayout() {
+function computeLayout(concepts: Concept[]) {
   const nodes: NodePos[] = concepts.map((c, i) => {
     const x = START_X + i * (NODE_W + GAP_X)
     const y = laneY(laneIndex(primaryLayer(c))) + NODE_DY
-    return { c, x, y, conflict: c.sections.some((s) => s.dissent) }
+    return { c, x, y, conflict: c.sections.some((s) => (s.dissents?.length ?? 0) > 0) }
   })
   const ghosts: GhostPos[] = []
   for (const n of nodes) {
     const seen = new Set<LayerId>()
     for (const s of n.c.sections) {
-      if (!s.dissent || seen.has(s.dissent.layer)) continue
-      seen.add(s.dissent.layer)
-      ghosts.push({
-        key: `${n.c.id}:${s.dissent.layer}`, parent: n, layer: s.dissent.layer, value: s.dissent.value,
-        x: n.x + (NODE_W - GHOST_W) / 2, y: laneY(laneIndex(s.dissent.layer)) + GHOST_DY,
-      })
+      for (const d of s.dissents ?? []) {
+        if (seen.has(d.layer)) continue
+        seen.add(d.layer)
+        ghosts.push({
+          key: `${n.c.id}:${d.layer}`, parent: n, layer: d.layer, value: d.value,
+          x: n.x + (NODE_W - GHOST_W) / 2, y: laneY(laneIndex(d.layer)) + GHOST_DY,
+        })
+      }
     }
   }
   const worldW = START_X + concepts.length * (NODE_W + GAP_X)
@@ -53,8 +55,14 @@ function edgePath(x1: number, y1: number, x2: number, y2: number) {
 }
 
 export function Canvas() {
-  const { setSelConcept, setSelConflict, setView, conflicts } = useStore()
-  const { nodes, ghosts, worldW, worldH } = computeLayout()
+  const { setSelConcept, setSelConflict, setView, conflicts, concepts } = useStore()
+  // Memoized: pan/zoom re-renders every pointermove — don't re-lay-out for those.
+  const { nodes, ghosts, worldW, worldH } = useMemo(() => computeLayout(concepts), [concepts])
+  const laneCounts = useMemo(() => {
+    const counts: Record<LayerId, number> = { company: 0, team: 0, personal: 0 }
+    for (const c of concepts) counts[primaryLayer(c)] += 1
+    return counts
+  }, [concepts])
 
   const wrapRef = useRef<HTMLDivElement>(null)
   const [view, setViewT] = useState({ tx: 40, ty: 20, scale: 1 })
@@ -67,11 +75,25 @@ export function Canvas() {
     const el = wrapRef.current
     if (!el) return
     const cw = el.clientWidth, ch = el.clientHeight
-    const scale = Math.min(1, (cw - 48) / worldW, (ch - 48) / worldH)
+    // Guard against a not-yet-laid-out element (async data can populate before
+    // layout settles): a zero width would yield a negative scale that never
+    // self-corrects, collapsing the whole canvas to a speck.
+    if (cw < 40 || ch < 40) return
+    const scale = Math.max(0.2, Math.min(1, (cw - 48) / worldW, (ch - 48) / worldH))
     setViewT({ scale, tx: (cw - worldW * scale) / 2, ty: Math.max(24, (ch - worldH * scale) / 2) })
   }, [worldW, worldH])
 
   useLayoutEffect(() => { fit() }, [fit])
+
+  // Refit once the canvas actually has a measured size and on any resize — the
+  // useLayoutEffect above can fire before the element is laid out.
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => fit())
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [fit])
 
   // native wheel listener so we can preventDefault (zoom toward cursor)
   useEffect(() => {
@@ -152,7 +174,7 @@ export function Canvas() {
                   <span style={css(`display:grid; place-items:center; width:26px; height:26px; border-radius:999px; background:${C.raised}; border:2px solid ${col.strokeE}; color:${col.text}; font-family:${MONO}; font-weight:600; font-size:12px;`)}>{L.level}</span>
                   <div style={{ lineHeight: 1.15 }}>
                     <div style={css(`font-size:13px; font-weight:600; color:${col.text};`)}>{L.name}</div>
-                    <div style={css(`font-size:10.5px; color:${C.faint}; font-family:${MONO};`)}>{L.members} · {L.concepts} concepts</div>
+                    <div style={css(`font-size:10.5px; color:${C.caption}; font-family:${MONO};`)}>{L.members} · {laneCounts[id]} concept{laneCounts[id] === 1 ? '' : 's'}</div>
                   </div>
                 </div>
               </div>
@@ -192,7 +214,7 @@ export function Canvas() {
               >
                 <div style={css('display:flex; align-items:center; gap:7px;')}>
                   <LayerChip id={g.layer} />
-                  <span style={css(`font-size:9.5px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:${C.amberStrokeE};`)}>overridden</span>
+                  <span style={css(`font-size:9.5px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:${C.amberText};`)}>overridden</span>
                 </div>
                 <div style={css(`font-size:11.5px; color:${col.text2}; line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;`)}>{g.value}</div>
               </button>
@@ -216,14 +238,14 @@ export function Canvas() {
                 <div style={css('display:flex; align-items:center; gap:8px;')}>
                   <span style={css(`display:inline-flex; align-items:center; font-family:${MONO}; font-size:9px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; padding:2px 7px; border-radius:6px; color:${col.text}; border:1px solid ${col.strokeE}; background:${col.fill};`)}>{n.c.type}</span>
                   {n.conflict && (
-                    <span style={css(`display:inline-flex; align-items:center; gap:4px; margin-left:auto; font-size:9.5px; font-weight:600; color:${C.amberStrokeE};`)}>
+                    <span style={css(`display:inline-flex; align-items:center; gap:4px; margin-left:auto; font-size:9.5px; font-weight:600; color:${C.amberText};`)}>
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M12 8v5M12 16.5v.5" /><circle cx="12" cy="12" r="9" /></svg>conflict
                     </span>
                   )}
                   {n.c.draft && !n.conflict && <span style={css(`margin-left:auto; font-size:10px; font-family:${MONO}; color:${C.amberText2};`)}>draft</span>}
                 </div>
                 <div style={css(`font-weight:600; font-size:13.5px; margin-top:9px; color:${C.ink}; line-height:1.25;`)}>{n.c.title}</div>
-                <code style={css(`font-family:${MONO}; font-size:10.5px; color:${C.faint}; margin-top:auto;`)}>{n.c.id}</code>
+                <code style={css(`font-family:${MONO}; font-size:10.5px; color:${C.caption}; margin-top:auto;`)}>{n.c.id}</code>
               </button>
             )
           })}
@@ -232,7 +254,7 @@ export function Canvas() {
 
       {/* legend */}
       <div style={css(`position:absolute; left:20px; bottom:20px; display:flex; flex-direction:column; gap:8px; padding:12px 14px; background:var(--cc-header-bg); backdrop-filter:blur(10px); border:1px solid ${C.line}; border-radius:11px; box-shadow:0 4px 16px var(--cc-shadow);`)}>
-        <div style={css(`font-size:10px; font-weight:600; letter-spacing:0.07em; text-transform:uppercase; color:${C.faint};`)}>The cascade — higher lanes win</div>
+        <div style={css(`font-size:10px; font-weight:600; letter-spacing:0.07em; text-transform:uppercase; color:${C.caption};`)}>The cascade — higher lanes win</div>
         <div style={css('display:flex; align-items:center; gap:8px;')}>
           <svg width="30" height="10"><line x1="0" y1="5" x2="30" y2="5" stroke="var(--cc-edge-conflict)" strokeWidth="1.8" strokeDasharray="5 5" /></svg>
           <span style={css(`font-size:11.5px; color:${C.caption};`)}>a lower layer disagrees — click to resolve</span>

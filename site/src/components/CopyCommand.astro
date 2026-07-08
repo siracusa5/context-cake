@@ -1,6 +1,7 @@
 ---
 // Copy-to-clipboard command box (spec.md: homepage AC 1–2).
 import { codeToHtml } from 'shiki';
+import Icon from './Icon.astro';
 
 interface Props {
 	command: string;
@@ -15,10 +16,7 @@ const html = await codeToHtml(`$ ${command}`, {
 <div class="copy-command">
 	<div class="command-view" set:html={html} />
 	<button type="button" data-command={command} aria-label="Copy command to clipboard">
-		<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-			<rect x="9" y="9" width="13" height="13" rx="2"></rect>
-			<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-		</svg>
+		<Icon name="copy" size={16} />
 		<span class="label">Copy</span>
 	</button>
 </div>
@@ -91,32 +89,67 @@ const html = await codeToHtml(`$ ${command}`, {
 				return true;
 			}
 		} catch {
-			/* fall through to the execCommand fallback */
+			/* fall through to execCommand */
 		}
+		// Insecure context (e.g. LAN http:// preview) or a denied clipboard
+		// permission: execCommand is deprecated but still copies everywhere,
+		// and the spec's AC is that the button copies — copy the bare command,
+		// not the rendered "$ " prompt.
 		try {
 			const ta = document.createElement('textarea');
 			ta.value = text;
 			ta.setAttribute('readonly', '');
 			ta.style.position = 'fixed';
-			ta.style.left = '-9999px';
+			ta.style.opacity = '0';
 			document.body.appendChild(ta);
 			ta.select();
 			const ok = document.execCommand('copy');
-			document.body.removeChild(ta);
+			ta.remove();
 			return ok;
 		} catch {
 			return false;
 		}
 	}
 
+	// Last-resort fallback when both clipboard paths fail: select the command
+	// text in the visible code view so the user can copy it themselves
+	// (Cmd/Ctrl-C). Excludes the rendered "$ " prompt so the paste is runnable.
+	function selectCommandText(button: HTMLButtonElement) {
+		const view = button
+			.closest('.copy-command')
+			?.querySelector<HTMLElement>('.command-view code');
+		if (!view) return;
+		const selection = window.getSelection();
+		if (!selection) return;
+		const range = document.createRange();
+		range.selectNodeContents(view);
+		// Skip past the leading "$ " prompt so a manual copy pastes a runnable
+		// command. The prompt is the first rendered characters of the block.
+		const walker = document.createTreeWalker(view, NodeFilter.SHOW_TEXT);
+		const first = walker.nextNode();
+		if (first?.textContent?.startsWith('$')) {
+			const skip = first.textContent.startsWith('$ ') ? 2 : 1;
+			if (first.textContent.length > skip) range.setStart(first, skip);
+			else {
+				const next = walker.nextNode();
+				if (next) range.setStart(next, next.textContent?.startsWith(' ') ? 1 : 0);
+			}
+		}
+		selection.removeAllRanges();
+		selection.addRange(range);
+	}
+
 	for (const button of document.querySelectorAll<HTMLButtonElement>('.copy-command button')) {
 		button.addEventListener('click', async () => {
-			await copyText(button.dataset.command ?? '');
-			// Confirm regardless — the command is visible, so the worst case is a
-			// manual copy, and the user still gets feedback that the click landed.
-			button.classList.add('copied');
+			const ok = await copyText(button.dataset.command ?? '');
 			const label = button.querySelector('.label');
-			if (label) label.textContent = 'Copied';
+			if (ok) {
+				button.classList.add('copied');
+				if (label) label.textContent = 'Copied';
+			} else {
+				selectCommandText(button);
+				if (label) label.textContent = 'Selected — press ⌘/Ctrl-C';
+			}
 			setTimeout(() => {
 				button.classList.remove('copied');
 				if (label) label.textContent = 'Copy';

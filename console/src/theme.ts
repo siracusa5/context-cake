@@ -20,7 +20,7 @@ export const C = {
   amberSoft: 'var(--cc-amber-soft)',
 } as const
 
-export const MONO = "'IBM Plex Mono', ui-monospace, monospace"
+export const MONO = "'JetBrains Mono', ui-monospace, monospace"
 
 export type LayerId = 'company' | 'team' | 'personal'
 export type RouteId = 'review_required' | 'team_candidate' | 'ignore'
@@ -28,19 +28,21 @@ export type RouteId = 'review_required' | 'team_candidate' | 'ignore'
 export interface LayerColors {
   fill: string; stroke: string; strokeE: string; text: string; text2: string
 }
-// The design keeps all three layers on the blue ramp (company lightest,
-// personal deepest) so blue always reads as "layers / precedence".
+// Provenance semantics: each layer gets its own hue, matching the brand
+// trio used on the site and playground (company blue / team sage-teal /
+// personal amber). The emphasis stroke on each ramp is the exact canonical
+// hex; fill/stroke/text tiers are tinted per theme for contrast.
 export function lc(id: LayerId): LayerColors {
-  if (id === 'company') return { fill: C.blueFill, stroke: C.blueSoft, strokeE: C.blueStroke, text: C.blueText, text2: C.blueText2 }
-  if (id === 'team') return { fill: C.blueFill2, stroke: C.blueStroke, strokeE: C.blueStrokeE, text: C.blueText, text2: C.blueText2 }
-  return { fill: C.blueFill3, stroke: C.blueStrokeE, strokeE: C.blueStrokeE, text: C.blueText, text2: C.blueText2 }
+  if (id === 'company') return { fill: C.blueFill, stroke: C.blueSoft, strokeE: C.blueStrokeE, text: C.blueText, text2: C.blueText2 }
+  if (id === 'team') return { fill: C.tealFill, stroke: C.tealStroke, strokeE: C.tealStrokeE, text: C.tealText, text2: C.tealText }
+  return { fill: C.amberFill, stroke: C.amberStroke, strokeE: C.amberStrokeE, text: C.amberText, text2: C.amberText2 }
 }
 
 export interface RouteColors { fill: string; stroke: string; text: string; label: string; accent: string }
 export function rc(route: RouteId): RouteColors {
   if (route === 'review_required') return { fill: C.amberFill, stroke: C.amberStroke, text: C.amberText, label: 'Review', accent: C.amberStroke }
   if (route === 'team_candidate') return { fill: C.tealFill, stroke: C.tealStroke, text: C.tealText, label: 'Store', accent: C.tealStroke }
-  return { fill: C.neutralFill, stroke: C.lineStrong, text: C.faint, label: 'Discard', accent: C.lineStrong }
+  return { fill: C.neutralFill, stroke: C.lineStrong, text: C.caption, label: 'Discard', accent: C.lineStrong }
 }
 
 export function badgeStyle(route: RouteId): React.CSSProperties {

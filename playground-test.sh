@@ -12,6 +12,7 @@ FAILED=0
 
 cleanup() {
   [ -n "$SRV_PID" ] && kill "$SRV_PID" 2>/dev/null
+  [ -n "${CPID:-}" ] && kill "$CPID" 2>/dev/null
   rm -rf "$TMP"
 }
 trap cleanup EXIT
@@ -66,10 +67,35 @@ curl -s -X PUT -H 'content-type: application/json' \
 grep -q 'roll back.' "$TMP/bundle/deploy.md" && pass "next section survived" || fail "next section corrupted"
 grep -q 'a comment' "$TMP/bundle/deploy.md" && fail "fenced comment leaked (boundary bug)" || pass "fenced comment replaced cleanly"
 
+echo "bulk resolve (/api/resolve-all)"
+RA="$(curl -s "$BASE/api/resolve-all" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const r=JSON.parse(s);process.stdout.write(`${r.concepts.length}:${r.errors.length}:${r.concepts[0]?.id}`)})')"
+[ "$RA" = "1:0:deploy" ] && pass "resolve-all returns all concepts in one pass" || fail "resolve-all ($RA)"
+
+echo "console not mounted → friendly notice (default server)"
+code 503 "$(C "$BASE/console/")" "unmounted /console/ returns 503"
+curl -s "$BASE/console/" | grep -q 'console:live' && pass "notice explains npm run console:live" || fail "unmounted notice content"
+
 echo "source add/remove roundtrip"
 mkdir -p "$TMP/b2"
 printf -- '---\ntype: note\ntitle: N\n---\n\n# N\n\n## S {#s}\n\nx.\n' > "$TMP/b2/n.md"
 code 200 "$(C -X POST -H 'content-type: application/json' -d "{\"kind\":\"local\",\"name\":\"b2\",\"level\":2,\"path\":\"$TMP/b2\"}" "$BASE/api/sources")" "add local source"
 code 200 "$(C -X DELETE "$BASE/api/sources?name=b2")" "remove source"
 
-[ "$FAILED" = 0 ] && echo "playground test passed (sandbox + CSRF/host + fence + tokens + source CRUD)" || { echo "playground test FAILED"; exit 1; }
+echo "console static mount (--console)"
+CPORT=$((PORT + 1)); CBASE="http://127.0.0.1:$CPORT"
+mkdir -p "$TMP/cdist/assets"
+printf '<!doctype html><title>Console</title><div id=root>CONSOLE_OK</div>\n' > "$TMP/cdist/index.html"
+printf 'body{color:#000}\n' > "$TMP/cdist/assets/app.css"
+ln -s "$TMP/outside/secret.txt" "$TMP/cdist/escape.txt" # symlink escaping the dist
+node "$ROOT/playground/server.mjs" --manifest "$TMP/manifest.json" --port "$CPORT" --console "$TMP/cdist" >/dev/null 2>&1 &
+CPID=$!
+for _ in $(seq 1 30); do curl -sf "$CBASE/api/graph" >/dev/null 2>&1 && break; sleep 0.1; done
+curl -s "$CBASE/console/" | grep -q CONSOLE_OK && pass "/console/ serves index" || fail "/console/ index"
+code 200 "$(C "$CBASE/console/assets/app.css")" "console asset served"
+curl -s "$CBASE/console/concepts/anything" | grep -q CONSOLE_OK && pass "SPA route → index fallback" || fail "SPA fallback"
+curl -s --path-as-is "$CBASE/console/../outside/secret.txt" | grep -q SECRET && fail "console traversal exposed secret" || pass "console traversal blocked"
+curl -s "$CBASE/console/escape.txt" | grep -q SECRET && fail "console symlink exposed secret" || pass "console symlink escape blocked"
+grep -q SECRET "$TMP/outside/secret.txt" && pass "console secret intact" || fail "console secret exposed"
+kill "$CPID" 2>/dev/null; CPID=""
+
+[ "$FAILED" = 0 ] && echo "playground test passed (sandbox + CSRF/host + fence + tokens + source CRUD + console mount)" || { echo "playground test FAILED"; exit 1; }

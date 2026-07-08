@@ -4,7 +4,10 @@
 //   GET /api/resolve?concept=<id>   -> one concept resolved by the real engine
 // Everything on screen is a rendering of that engine output.
 
-const LAYER_PALETTE = ["#a78bfa", "#38bdf8", "#34d399", "#f5b544", "#f472b6", "#facc15"];
+// Index 0-2 are the brand provenance trio (personal/team/company, matching
+// site + console); indices 3+ are extra hues for manifests with more than
+// three layers, cycling after the trio.
+const LAYER_PALETTE = ["#d9ab53", "#8dc3a8", "#8bbad1", "#f5b544", "#f472b6", "#facc15"];
 const NODE_W = 240;
 const RES_W = 264;
 
@@ -63,6 +66,7 @@ async function init() {
   wireCanvas();
   wireFiles();
   wireSources();
+  wireUpdateCheck();
   await boot();
 }
 
@@ -561,7 +565,26 @@ async function applyMerge() {
 function wireChrome() {
   el.omni.addEventListener("input", (e) => { state.filter = e.target.value; renderConceptList(); });
   document.getElementById("syncBtn").addEventListener("click", sync);
+  document.getElementById("topbarSyncBtn").addEventListener("click", sync);
   document.getElementById("fitBtn").addEventListener("click", fitView);
+
+  // The brand mark reads like a hamburger — so let it collapse/expand the rail.
+  const railToggle = document.getElementById("railToggle");
+  const app = document.querySelector(".app");
+  const RAIL_KEY = "cc-pg-rail";
+  const applyRail = (collapsed) => {
+    app.dataset.rail = collapsed ? "collapsed" : "expanded";
+    railToggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  };
+  let railCollapsed = false;
+  try { railCollapsed = window.localStorage.getItem(RAIL_KEY) === "collapsed"; } catch { /* ignore */ }
+  applyRail(railCollapsed);
+  railToggle.addEventListener("click", () => {
+    railCollapsed = !railCollapsed;
+    applyRail(railCollapsed);
+    try { window.localStorage.setItem(RAIL_KEY, railCollapsed ? "collapsed" : "expanded"); } catch { /* ignore */ }
+    fitView();
+  });
   document.getElementById("zoomIn").addEventListener("click", () => zoomBy(1.15));
   document.getElementById("zoomOut").addEventListener("click", () => zoomBy(1 / 1.15));
   document.getElementById("stageRetry").addEventListener("click", boot);
@@ -793,6 +816,116 @@ function escapeHtml(v) {
     .replaceAll('"', "&quot;").replaceAll("'", "&#039;");
 }
 function escapeAttr(v) { return escapeHtml(v); }
+
+// ===========================================================================
+// Update awareness — a single, unauthenticated, PII-free check against a
+// pinned GitHub host. Never blocks boot, never retries. Reuses the same
+// localStorage key as the console (`cc-update-check`), default ON here since
+// the playground is a local dev tool (vs. off-by-default for the public
+// demo embed).
+// ===========================================================================
+
+// List releases (newest first) and pick the newest ENGINE one: the monorepo
+// tags engine releases `v*` and console releases `console-v*`, and the
+// playground ships with the engine. `/releases/latest` is namespace-blind.
+const UPDATE_RELEASES_URL = "https://api.github.com/repos/ContextCake/context-cake/releases?per_page=20";
+const UPDATE_TAG_PREFIX = /^v(?=\d)/;
+const UPDATE_STORAGE_KEY = "cc-update-check";
+// Bumped manually alongside releases; the playground has no package.json of its own.
+const PLAYGROUND_VERSION = "0.1.0";
+
+function updateCompareVersions(a, b) {
+  const as = a.split(".");
+  const bs = b.split(".");
+  const len = Math.max(as.length, bs.length);
+  for (let i = 0; i < len; i++) {
+    const an = Number.parseInt(as[i] ?? "0", 10) || 0;
+    const bn = Number.parseInt(bs[i] ?? "0", 10) || 0;
+    if (an !== bn) return an - bn;
+  }
+  return 0;
+}
+
+function isUpdateCheckEnabled() {
+  let stored = null;
+  try { stored = window.localStorage.getItem(UPDATE_STORAGE_KEY); } catch { stored = null; }
+  if (stored === "off") return false;
+  return true; // default on in the playground
+}
+
+function setUpdateCheckEnabled(enabled) {
+  try { window.localStorage.setItem(UPDATE_STORAGE_KEY, enabled ? "on" : "off"); } catch { /* ignore */ }
+}
+
+async function checkForUpdatePlayground() {
+  let res;
+  try {
+    res = await fetch(UPDATE_RELEASES_URL, { headers: { accept: "application/vnd.github+json" } });
+  } catch {
+    return null;
+  }
+  if (!res.ok) return null;
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    return null;
+  }
+  const releases = Array.isArray(data) ? data : [];
+  const release = releases.find((r) =>
+    r && typeof r.tag_name === "string" && UPDATE_TAG_PREFIX.test(r.tag_name) && r.draft !== true && r.prerelease !== true);
+  if (!release) return null;
+  const tag = release.tag_name;
+  const latest = tag.replace(UPDATE_TAG_PREFIX, "");
+  if (!latest || updateCompareVersions(latest, PLAYGROUND_VERSION) <= 0) return null;
+  // Scheme-check the API-provided URL before it becomes a clickable href.
+  const url = typeof release.html_url === "string" && release.html_url.startsWith("https://")
+    ? release.html_url
+    : `https://github.com/ContextCake/context-cake/releases/tag/${tag}`;
+  return { latest, url };
+}
+
+function wireUpdateCheck() {
+  const badge = document.getElementById("updateBadge");
+  const link = document.getElementById("updateBadgeLink");
+  const dismissBtn = document.getElementById("updateBadgeDismiss");
+  const settingsBtn = document.getElementById("updateSettingsBtn");
+  if (!badge || !link || !dismissBtn || !settingsBtn) return;
+
+  let menu = null;
+  const closeMenu = () => { if (menu) { menu.remove(); menu = null; } };
+  settingsBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (menu) { closeMenu(); return; }
+    menu = document.createElement("div");
+    menu.id = "updateSettingsMenu";
+    menu.innerHTML = `<label><input id="updateCheckToggle" type="checkbox" ${isUpdateCheckEnabled() ? "checked" : ""}> Check for updates</label>`;
+    settingsBtn.parentElement.style.position = settingsBtn.parentElement.style.position || "relative";
+    settingsBtn.insertAdjacentElement("afterend", menu);
+    document.getElementById("updateCheckToggle").addEventListener("change", (ev) => {
+      const enabled = ev.target.checked;
+      setUpdateCheckEnabled(enabled);
+      if (!enabled) badge.hidden = true;
+      else runUpdateCheck();
+    });
+  });
+  document.addEventListener("click", (e) => {
+    if (menu && !menu.contains(e.target) && e.target !== settingsBtn) closeMenu();
+  });
+
+  dismissBtn.addEventListener("click", () => { badge.hidden = true; });
+
+  async function runUpdateCheck() {
+    if (!isUpdateCheckEnabled()) return;
+    const info = await checkForUpdatePlayground();
+    if (!info) return;
+    link.href = info.url;
+    link.textContent = `Update available → v${info.latest}`;
+    badge.hidden = false;
+  }
+
+  void runUpdateCheck();
+}
 
 // ===========================================================================
 // Files mode — explorer + editor (CodeMirror) + rich preview (md / svg / image / pdf)
@@ -1087,9 +1220,9 @@ function renderBudget() {
   const total = g.totals.sourceTokens || 1;
   const ordered = [...g.sources].sort((a, b) => b.tokens - a.tokens);
   const bar = ordered.map((s) =>
-    `<div class="budget__seg" style="width:${(s.tokens / total * 100).toFixed(2)}%;background:${state.colors[s.name] ?? "#3a4658"}" title="${escapeAttr(s.name)}"></div>`).join("");
+    `<div class="budget__seg" style="width:${(s.tokens / total * 100).toFixed(2)}%;background:${state.colors[s.name] ?? "#4a463d"}" title="${escapeAttr(s.name)}"></div>`).join("");
   const legend = ordered.map((s) =>
-    `<span class="budget__key"><i style="background:${state.colors[s.name] ?? "#3a4658"}"></i><b>${escapeHtml(s.name)}</b> <span>${fmtNum(s.tokens)} · ${(s.tokens / total * 100).toFixed(0)}%</span></span>`).join("");
+    `<span class="budget__key"><i style="background:${state.colors[s.name] ?? "#4a463d"}"></i><b>${escapeHtml(s.name)}</b> <span>${fmtNum(s.tokens)} · ${(s.tokens / total * 100).toFixed(0)}%</span></span>`).join("");
   document.getElementById("budget").innerHTML = `
     <div class="budget__top">
       <div class="budget__figure"><span class="budget__num">${fmtNum(g.totals.sourceTokens)}</span><span class="budget__unit">context tokens across ${g.totals.sources} source${g.totals.sources === 1 ? "" : "s"}</span></div>
@@ -1112,7 +1245,7 @@ function renderSourcesTable() {
 }
 
 function sourceRow(s, total) {
-  const color = state.colors[s.name] ?? "#3a4658";
+  const color = state.colors[s.name] ?? "#4a463d";
   const pct = total ? (s.tokens / total) * 100 : 0;
   const loc = s.kind === "github" && s.origin
     ? `<a href="${escapeAttr(s.origin.replace(/\.git$/, ""))}" target="_blank" rel="noopener">${escapeHtml(s.origin.replace(/^https:\/\/github\.com\//, "").replace(/\.git$/, ""))}</a>`
@@ -1171,6 +1304,21 @@ function setAddKind(kind) {
   document.getElementById("addKind").querySelectorAll("button").forEach((b) =>
     b.classList.toggle("is-active", b.dataset.kind === kind));
   document.getElementById("addFields").innerHTML = addFieldsHtml(kind);
+  updateAddSubmitGate();
+  if (kind === "mcp") {
+    document.getElementById("af-mcp-trust")?.addEventListener("change", updateAddSubmitGate);
+  }
+}
+
+// MCP sources spawn an arbitrary command every resolve — mirror the setup
+// wizard's trust-boundary confirm here so the two flows never diverge on
+// this security-critical gate. Disables the submit button until checked.
+function updateAddSubmitGate() {
+  const submit = document.getElementById("addSubmit");
+  if (!submit) return;
+  if (addKind !== "mcp") { submit.disabled = false; return; }
+  const trust = document.getElementById("af-mcp-trust");
+  submit.disabled = !(trust && trust.checked);
 }
 
 function addFieldsHtml(kind) {
@@ -1189,11 +1337,19 @@ function addFieldsHtml(kind) {
   }
   return `${common}
     <div class="field field--wide"><label for="af-command">Command <span class="req">· required</span></label><input id="af-command" class="mono" placeholder="node"></div>
-    <div class="field field--wide"><label for="af-args">Arguments</label><input id="af-args" class="mono" placeholder="examples/mock-context-source.mjs"><span class="field__hint">This source spawns the command and translates its graph to OKF. Only add servers you trust.</span></div>`;
+    <div class="field field--wide"><label for="af-args">Arguments</label><input id="af-args" class="mono" placeholder="examples/mock-context-source.mjs"><span class="field__hint">This source spawns the command and translates its graph to OKF. Only add servers you trust.</span></div>
+    <div class="field field--wide field--warn">
+      <p class="field__warning">An MCP source runs a command on your machine every time the cascade resolves. Only add servers you trust — a manifest you didn't author can run arbitrary code as you.</p>
+      <label class="field__confirm"><input id="af-mcp-trust" type="checkbox"> I trust this command</label>
+    </div>`;
 }
 
 async function submitAddSource(e) {
   e.preventDefault();
+  if (addKind === "mcp" && !document.getElementById("af-mcp-trust")?.checked) {
+    setAddHint("Confirm you trust this command before adding an MCP source.", true);
+    return;
+  }
   const body = { kind: addKind, name: fval("af-name"), level: Number(fval("af-level")) || 1 };
   if (addKind === "local") body.path = fval("af-path");
   if (addKind === "github") { body.repo = fval("af-repo"); body.ref = fval("af-ref"); body.subdir = fval("af-subdir"); }
