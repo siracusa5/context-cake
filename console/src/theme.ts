@@ -42,7 +42,7 @@ export interface RouteColors { fill: string; stroke: string; text: string; label
 export function rc(route: RouteId): RouteColors {
   if (route === 'review_required') return { fill: C.amberFill, stroke: C.amberStroke, text: C.amberText, label: 'Review', accent: C.amberStroke }
   if (route === 'team_candidate') return { fill: C.tealFill, stroke: C.tealStroke, text: C.tealText, label: 'Store', accent: C.tealStroke }
-  return { fill: C.neutralFill, stroke: C.lineStrong, text: C.faint, label: 'Discard', accent: C.lineStrong }
+  return { fill: C.neutralFill, stroke: C.lineStrong, text: C.caption, label: 'Discard', accent: C.lineStrong }
 }
 
 export function badgeStyle(route: RouteId): React.CSSProperties {

@@ -152,7 +152,7 @@ export function Canvas() {
                   <span style={css(`display:grid; place-items:center; width:26px; height:26px; border-radius:999px; background:${C.raised}; border:2px solid ${col.strokeE}; color:${col.text}; font-family:${MONO}; font-weight:600; font-size:12px;`)}>{L.level}</span>
                   <div style={{ lineHeight: 1.15 }}>
                     <div style={css(`font-size:13px; font-weight:600; color:${col.text};`)}>{L.name}</div>
-                    <div style={css(`font-size:10.5px; color:${C.faint}; font-family:${MONO};`)}>{L.members} · {L.concepts} concepts</div>
+                    <div style={css(`font-size:10.5px; color:${C.caption}; font-family:${MONO};`)}>{L.members} · {L.concepts} concepts</div>
                   </div>
                 </div>
               </div>
@@ -192,7 +192,7 @@ export function Canvas() {
               >
                 <div style={css('display:flex; align-items:center; gap:7px;')}>
                   <LayerChip id={g.layer} />
-                  <span style={css(`font-size:9.5px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:${C.amberStrokeE};`)}>overridden</span>
+                  <span style={css(`font-size:9.5px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:${C.amberText};`)}>overridden</span>
                 </div>
                 <div style={css(`font-size:11.5px; color:${col.text2}; line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;`)}>{g.value}</div>
               </button>
@@ -216,14 +216,14 @@ export function Canvas() {
                 <div style={css('display:flex; align-items:center; gap:8px;')}>
                   <span style={css(`display:inline-flex; align-items:center; font-family:${MONO}; font-size:9px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; padding:2px 7px; border-radius:6px; color:${col.text}; border:1px solid ${col.strokeE}; background:${col.fill};`)}>{n.c.type}</span>
                   {n.conflict && (
-                    <span style={css(`display:inline-flex; align-items:center; gap:4px; margin-left:auto; font-size:9.5px; font-weight:600; color:${C.amberStrokeE};`)}>
+                    <span style={css(`display:inline-flex; align-items:center; gap:4px; margin-left:auto; font-size:9.5px; font-weight:600; color:${C.amberText};`)}>
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M12 8v5M12 16.5v.5" /><circle cx="12" cy="12" r="9" /></svg>conflict
                     </span>
                   )}
                   {n.c.draft && !n.conflict && <span style={css(`margin-left:auto; font-size:10px; font-family:${MONO}; color:${C.amberText2};`)}>draft</span>}
                 </div>
                 <div style={css(`font-weight:600; font-size:13.5px; margin-top:9px; color:${C.ink}; line-height:1.25;`)}>{n.c.title}</div>
-                <code style={css(`font-family:${MONO}; font-size:10.5px; color:${C.faint}; margin-top:auto;`)}>{n.c.id}</code>
+                <code style={css(`font-family:${MONO}; font-size:10.5px; color:${C.caption}; margin-top:auto;`)}>{n.c.id}</code>
               </button>
             )
           })}
@@ -232,7 +232,7 @@ export function Canvas() {
 
       {/* legend */}
       <div style={css(`position:absolute; left:20px; bottom:20px; display:flex; flex-direction:column; gap:8px; padding:12px 14px; background:var(--cc-header-bg); backdrop-filter:blur(10px); border:1px solid ${C.line}; border-radius:11px; box-shadow:0 4px 16px var(--cc-shadow);`)}>
-        <div style={css(`font-size:10px; font-weight:600; letter-spacing:0.07em; text-transform:uppercase; color:${C.faint};`)}>The cascade — higher lanes win</div>
+        <div style={css(`font-size:10px; font-weight:600; letter-spacing:0.07em; text-transform:uppercase; color:${C.caption};`)}>The cascade — higher lanes win</div>
         <div style={css('display:flex; align-items:center; gap:8px;')}>
           <svg width="30" height="10"><line x1="0" y1="5" x2="30" y2="5" stroke="var(--cc-edge-conflict)" strokeWidth="1.8" strokeDasharray="5 5" /></svg>
           <span style={css(`font-size:11.5px; color:${C.caption};`)}>a lower layer disagrees — click to resolve</span>

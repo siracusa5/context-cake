@@ -91,7 +91,7 @@ export function Overview() {
                 const barColor = s.coverage >= 75 ? C.tealStroke : s.coverage >= 60 ? C.blueStroke : C.amberStroke
                 return (
                   <div key={s.name} style={css('display:grid; grid-template-columns:22px minmax(0,1.4fr) auto 132px 70px; align-items:center; gap:13px; padding:9px 12px; background:#FFFFFF; border:1px solid #E4E1D6; border-radius:9px;')}>
-                    <span title={k.l} style={css(`display:grid; place-items:center; font-family:${MONO}; font-size:13px; color:${C.faint};`)}>{k.g}</span>
+                    <span title={k.l} style={css(`display:grid; place-items:center; font-family:${MONO}; font-size:13px; color:${C.caption};`)}>{k.g}</span>
                     <div style={{ minWidth: 0 }}>
                       <div style={css(`font-weight:500; font-size:13px; font-family:${MONO}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;`)}>{s.name}</div>
                       <div style={css('font-size:11px; color:#8A8A82; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;')}>{s.focus}</div>

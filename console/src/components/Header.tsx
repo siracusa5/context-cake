@@ -25,7 +25,7 @@ export function Header() {
       <div className="cc-sub-actions">
         {showSearch && (
           <label className="cc-search">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style={{ stroke: 'var(--cc-faint)' }} strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style={{ stroke: 'var(--cc-caption)' }} strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}

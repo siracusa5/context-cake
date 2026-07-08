@@ -28,7 +28,7 @@ export function Triage() {
               style={css(`display:flex; align-items:center; gap:8px; border:none; border-radius:8px; padding:8px 15px; font:inherit; font-weight:${active ? 600 : 500}; font-size:13px; cursor:pointer; background:${active ? '#FBFAF6' : 'transparent'}; color:${active ? C.ink : C.caption}; box-shadow:${active ? '0 1px 2px rgba(26,25,21,0.08)' : 'none'};`)}
             >
               <span>{label}</span>
-              <span style={css(`font-family:${MONO}; font-size:11px; color:${active ? C.caption : C.faint};`)}>{count}</span>
+              <span style={css(`font-family:${MONO}; font-size:11px; color:${C.caption};`)}>{count}</span>
             </button>
           )
         })}
@@ -109,8 +109,8 @@ export function Triage() {
                         const isT = selSig.landLayer === id
                         return (
                           <div key={id} style={css(`display:flex; align-items:center; gap:11px; padding:9px 12px; background:${isT ? col.fill : '#FFFFFF'}; border:1px solid ${isT ? col.stroke : C.line}; border-radius:9px;`)}>
-                            <div style={css(`display:grid; place-items:center; width:26px; height:26px; border-radius:999px; background:${isT ? '#FFFFFF' : C.surface}; border:2px solid ${isT ? col.strokeE : C.line}; color:${isT ? col.text : C.faint}; font-family:${MONO}; font-weight:600; font-size:12px; flex:0 0 auto;`)}>{L.level}</div>
-                            <span style={css(`font-weight:${isT ? 600 : 500}; font-size:13px; color:${isT ? col.text : C.faint};`)}>{L.name}</span>
+                            <div style={css(`display:grid; place-items:center; width:26px; height:26px; border-radius:999px; background:${isT ? '#FFFFFF' : C.surface}; border:2px solid ${isT ? col.strokeE : C.line}; color:${isT ? col.text : C.caption}; font-family:${MONO}; font-weight:600; font-size:12px; flex:0 0 auto;`)}>{L.level}</div>
+                            <span style={css(`font-weight:${isT ? 600 : 500}; font-size:13px; color:${isT ? col.text : C.caption};`)}>{L.name}</span>
                             {isT && <code style={css(`margin-left:auto; font-family:${MONO}; font-size:11px; color:${col.text};`)}>{selSig.landPath}</code>}
                           </div>
                         )
