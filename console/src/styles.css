@@ -14,6 +14,14 @@
   --cc-faint: #8A918B;
   --cc-scrollbar: rgba(61,76,68,0.20);
 
+  /* Provenance trio — layer identity, must match site/playground exactly.
+     Named directly here for swatches/borders/large elements; the fill/stroke/
+     text ramps below stay tinted per-theme so small text/badges keep 4.5:1. */
+  --cc-layer-company: #8bbad1;
+  --cc-layer-team: #8dc3a8;
+  --cc-layer-personal: #d9ab53;
+  --cc-conflict: #e07a56;
+
   --cc-blue-fill: #E6F0F3; --cc-blue-fill2: #D7E8EE; --cc-blue-fill3: #C4DDE7;
   --cc-blue-stroke: #4E8198; --cc-blue-stroke-e: #356F91;
   --cc-blue-text: #224E63; --cc-blue-text2: #477083; --cc-blue-soft: #A9C8D5;
@@ -61,6 +69,11 @@
   --cc-faint: #80796F;
   --cc-scrollbar: rgba(235,226,207,0.18);
 
+  --cc-layer-company: #8bbad1;
+  --cc-layer-team: #8dc3a8;
+  --cc-layer-personal: #d9ab53;
+  --cc-conflict: #e07a56;
+
   --cc-blue-fill: rgba(71,113,137,0.18); --cc-blue-fill2: rgba(71,113,137,0.24); --cc-blue-fill3: rgba(71,113,137,0.32);
   --cc-blue-stroke: #6FA0B8; --cc-blue-stroke-e: #8BBAD1;
   --cc-blue-text: #B6D9E8; --cc-blue-text2: #8FB8C9; --cc-blue-soft: rgba(139,186,209,0.32);
@@ -93,7 +106,7 @@ html, body { margin: 0; }
 body {
   background: var(--cc-page);
   color: var(--cc-ink);
-  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: 'Bricolage Grotesque', system-ui, sans-serif;
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -195,7 +208,7 @@ button { font-family: inherit; }
 .cc-brand-meta {
   margin-top: 4px;
   color: var(--cc-caption);
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.11em;
@@ -262,7 +275,7 @@ button { font-family: inherit; }
   padding: 0 6px;
   color: var(--cc-amber-text);
   background: rgba(201,95,63,0.12);
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 10px;
 }
 
