@@ -47,7 +47,7 @@ export function Triage() {
         })}
       </div>
 
-      <div style={css('display:grid; grid-template-columns:minmax(0,1fr) 400px; gap:20px; align-items:start;')}>
+      <div className="cc-triage-grid">
         <div style={css('display:flex; flex-direction:column; gap:11px; min-width:0;')}>
           {curList.length === 0 && (
             <div style={css('display:grid; place-items:center; min-height:220px; border:1px dashed #C3C1B8; border-radius:12px; color:#8A8A82; font-size:13px;')}>Nothing here — inbox zero.</div>
@@ -86,7 +86,7 @@ export function Triage() {
         </div>
 
         {/* decision panel */}
-        <aside style={css('position:sticky; top:88px; display:flex; flex-direction:column; gap:0;')}>
+        <aside className="cc-triage-panel" style={css('position:sticky; top:88px; display:flex; flex-direction:column; gap:0;')}>
           {selSig ? (() => {
             const r = rc(selSig.route)
             return (

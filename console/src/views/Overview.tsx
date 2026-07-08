@@ -29,10 +29,13 @@ export function Overview() {
   return (
     <div style={css('display:flex; flex-direction:column; gap:20px;')}>
       {/* stat tiles */}
-      <div style={css('display:grid; grid-template-columns:repeat(4,1fr); gap:14px;')}>
+      <div style={css('display:grid; grid-template-columns:repeat(auto-fit, minmax(148px, 1fr)); gap:14px;')}>
         {statTiles.map((s) => (
-          <div key={s.label} style={css(`padding:16px 18px; background:#FBFAF6; border:1px solid #D8D6CC; border-radius:11px; border-left:3px solid ${s.accent};`)}>
-            <div style={css('font-size:11px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:#8A8A82;')}>{s.label}</div>
+          <div key={s.label} style={css(`padding:16px 18px; background:#FBFAF6; border:1px solid #D8D6CC; border-radius:11px;`)}>
+            <div style={css('display:flex; align-items:center; gap:7px;')}>
+              <span style={css(`width:8px; height:8px; border-radius:3px; background:${s.accent}; flex:0 0 auto;`)} />
+              <div style={css('font-size:11px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:#8A8A82;')}>{s.label}</div>
+            </div>
             <div style={css('display:flex; align-items:baseline; gap:8px; margin-top:6px;')}>
               <div style={css(`font-family:${MONO}; font-size:30px; font-weight:500; letter-spacing:-0.02em; color:${s.numColor};`)}>{s.value}</div>
               <div style={css('font-size:12px; color:#57564F;')}>{s.unit}</div>
@@ -41,7 +44,7 @@ export function Overview() {
         ))}
       </div>
 
-      <div style={css('display:grid; grid-template-columns:1.55fr 1fr; gap:20px; align-items:start;')}>
+      <div style={css('display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:20px; align-items:start;')}>
         <div style={css('display:flex; flex-direction:column; gap:20px; min-width:0;')}>
           {/* Cascade */}
           <section style={css('background:#FBFAF6; border:1px solid #D8D6CC; border-radius:13px; padding:20px;')}>
@@ -90,14 +93,14 @@ export function Overview() {
                 const k = kindMap[s.kind]
                 const barColor = s.coverage >= 75 ? C.tealStroke : s.coverage >= 60 ? C.blueStroke : C.amberStroke
                 return (
-                  <div key={s.name} style={css('display:grid; grid-template-columns:22px minmax(0,1.4fr) auto 132px 70px; align-items:center; gap:13px; padding:9px 12px; background:#FFFFFF; border:1px solid #E4E1D6; border-radius:9px;')}>
+                  <div key={s.name} className="cc-src-row" style={css('padding:9px 12px; background:#FFFFFF; border:1px solid #E4E1D6; border-radius:9px;')}>
                     <span title={k.l} style={css(`display:grid; place-items:center; font-family:${MONO}; font-size:13px; color:${C.caption};`)}>{k.g}</span>
                     <div style={{ minWidth: 0 }}>
                       <div style={css(`font-weight:500; font-size:13px; font-family:${MONO}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;`)}>{s.name}</div>
                       <div style={css('font-size:11px; color:#8A8A82; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;')}>{s.focus}</div>
                     </div>
                     <span style={css(`display:inline-flex; align-items:center; font-family:${MONO}; font-size:9.5px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; padding:2px 8px; border-radius:999px; background:${col.fill}; color:${col.text}; border:1px solid ${col.strokeE}; justify-self:start;`)}>{layerName(s.layer)}</span>
-                    <div style={css('display:flex; align-items:center; gap:8px;')}>
+                    <div className="cc-src-cov" style={css('display:flex; align-items:center; gap:8px;')}>
                       <div style={css('flex:1; height:6px; border-radius:999px; background:#ECEAE0; overflow:hidden;')}>
                         <span style={css(`display:block; height:100%; width:${s.coverage}%; background:${barColor}; border-radius:999px;`)} />
                       </div>

@@ -578,6 +578,13 @@ button { font-family: inherit; }
   .cc-view-title h1 { font-size: 22px; }
 }
 
+@media (max-width: 640px) {
+  /* Let the search drop to its own row instead of colliding with the title. */
+  .cc-subbar { flex-wrap: wrap; }
+  .cc-sub-actions { flex-basis: 100%; }
+  .cc-search { width: 100%; }
+}
+
 @media (max-width: 520px) {
   .cc-view-title p { display: none; }
 }
@@ -618,4 +625,28 @@ textarea:focus-visible,
 .cc-canvas-dots {
   background-image: radial-gradient(var(--cc-canvas-dot) 1.4px, transparent 1.4px);
   background-size: 26px 26px;
+}
+
+/* Triage — list + decision panel side by side on desktop, stacked on mobile. */
+.cc-triage-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 400px;
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .cc-triage-grid { grid-template-columns: minmax(0, 1fr); }
+  .cc-triage-panel { position: static !important; }
+}
+
+/* Overview source rows — dense on desktop, simplified on small phones. */
+.cc-src-row {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1.4fr) auto 132px 70px;
+  align-items: center;
+  gap: 13px;
+}
+@media (max-width: 560px) {
+  .cc-src-row { grid-template-columns: 22px minmax(0, 1fr) auto auto; gap: 10px; }
+  .cc-src-cov { display: none; } /* the coverage bar drops on small screens */
 }
