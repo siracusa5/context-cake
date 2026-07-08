@@ -67,6 +67,14 @@ curl -s -X PUT -H 'content-type: application/json' \
 grep -q 'roll back.' "$TMP/bundle/deploy.md" && pass "next section survived" || fail "next section corrupted"
 grep -q 'a comment' "$TMP/bundle/deploy.md" && fail "fenced comment leaked (boundary bug)" || pass "fenced comment replaced cleanly"
 
+echo "bulk resolve (/api/resolve-all)"
+RA="$(curl -s "$BASE/api/resolve-all" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const r=JSON.parse(s);process.stdout.write(`${r.concepts.length}:${r.errors.length}:${r.concepts[0]?.id}`)})')"
+[ "$RA" = "1:0:deploy" ] && pass "resolve-all returns all concepts in one pass" || fail "resolve-all ($RA)"
+
+echo "console not mounted → friendly notice (default server)"
+code 503 "$(C "$BASE/console/")" "unmounted /console/ returns 503"
+curl -s "$BASE/console/" | grep -q 'console:live' && pass "notice explains npm run console:live" || fail "unmounted notice content"
+
 echo "source add/remove roundtrip"
 mkdir -p "$TMP/b2"
 printf -- '---\ntype: note\ntitle: N\n---\n\n# N\n\n## S {#s}\n\nx.\n' > "$TMP/b2/n.md"

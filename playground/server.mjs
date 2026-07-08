@@ -30,11 +30,6 @@ const PORT = Number(args.port ?? 8790);
 // console can run in live mode against this server's same-origin /api/* surface.
 // Guarded exactly like the file APIs (traversal + symlink); read-only static.
 const CONSOLE_DIR = args.console ? path.resolve(args.console) : null;
-// Real path of the console root (resolves e.g. macOS /var → /private/var) so the
-// symlink guard compares like-for-like against realpath'd targets.
-const CONSOLE_DIR_REAL = CONSOLE_DIR
-  ? (() => { try { return fs.realpathSync.native(CONSOLE_DIR); } catch { return CONSOLE_DIR; } })()
-  : null;
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -98,6 +93,7 @@ const server = http.createServer(async (req, res) => {
 
     if (url.pathname === "/api/graph") return json(res, 200, await buildGraph());
     if (url.pathname === "/api/resolve") return json(res, 200, await resolveOne(url.searchParams.get("concept")));
+    if (url.pathname === "/api/resolve-all") return json(res, 200, await resolveAllApi());
     if (url.pathname === "/api/files") return json(res, 200, listFiles());
     if (url.pathname === "/api/file") {
       if (req.method === "PUT" || req.method === "POST") return json(res, 200, writeFileApi(await readBody(req)));
@@ -115,7 +111,8 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/sources/sync" && req.method === "POST") {
       return json(res, 200, await syncSourceApi(url.searchParams.get("name")));
     }
-    if (CONSOLE_DIR && (url.pathname === "/console" || url.pathname.startsWith("/console/"))) {
+    if (url.pathname === "/console" || url.pathname.startsWith("/console/")) {
+      if (!CONSOLE_DIR) return consoleNotMounted(res);
       return serveConsole(url.pathname, res);
     }
     return serveStatic(url.pathname, res);
@@ -236,6 +233,41 @@ async function resolveOne(conceptId) {
     const resolved = await resolveConcept(conceptId, sources);
     if (!resolved) throw httpError(404, `Concept not found in any source: ${conceptId}`);
     return resolved;
+  } finally {
+    for (const s of sources) s.close?.();
+  }
+}
+
+// Resolve every concept in one pass over one set of open sources. The console's
+// initial load calls this instead of one /api/resolve per concept — each of
+// those re-opens every source (re-spawning any MCP child process per request).
+// Per-concept failures are reported alongside the successes, never fatal.
+async function resolveAllApi() {
+  const { sources } = openSources();
+  try {
+    const perSource = await Promise.all(
+      sources.map(async (s) => {
+        try {
+          return { ids: typeof s.listConceptIds === "function" ? await s.listConceptIds() : [], source: s, error: null };
+        } catch (err) {
+          return { ids: [], source: s, error: err.message };
+        }
+      }),
+    );
+    const healthy = perSource.filter((p) => !p.error).map((p) => p.source);
+    const allIds = [...new Set(perSource.flatMap((p) => p.ids))].sort();
+    const concepts = [];
+    const errors = [];
+    for (const id of allIds) {
+      try {
+        const resolved = await resolveConcept(id, healthy);
+        if (resolved) concepts.push(resolved);
+        else errors.push({ concept: id, error: "not found in any healthy source" });
+      } catch (err) {
+        errors.push({ concept: id, error: err.message });
+      }
+    }
+    return { concepts, errors };
   } finally {
     for (const s of sources) s.close?.();
   }
@@ -381,16 +413,26 @@ function resolveFilePath(apiPath) {
   const root = layerRootMap().get(layer);
   if (!root) throw httpError(404, `Unknown layer: ${layer}`);
   const abs = path.resolve(root, rel);
-  if (abs !== root && !abs.startsWith(root + path.sep)) throw httpError(403, "Path escapes its layer root");
-  // Symlink defense: the lexical check above trusts the path text; a symlink
-  // inside the root could still point outside it. Compare realpaths (of the
-  // existing target, or of the parent dir for a not-yet-existing file).
+  assertInsideRoot(abs, root, "Path escapes its layer root");
+  return { abs, layer, rel, root, ext: path.extname(abs).toLowerCase() };
+}
+
+/**
+ * The canonical containment guard, shared by every path that serves or writes
+ * files (layer file APIs, the /console/ static mount). Two checks: lexical
+ * prefix on the resolved path, then symlink defense — the lexical check trusts
+ * the path text, but a symlink inside the root could still point outside it,
+ * so compare realpaths (of the existing target, or of the parent dir for a
+ * not-yet-existing file). Returns the realpath'd target.
+ */
+function assertInsideRoot(abs, root, message) {
+  if (abs !== root && !abs.startsWith(root + path.sep)) throw httpError(403, message);
   const realRoot = safeRealpath(root);
   const realAbs = fs.existsSync(abs)
     ? safeRealpath(abs)
     : path.join(safeRealpath(path.dirname(abs)), path.basename(abs));
-  if (realAbs !== realRoot && !realAbs.startsWith(realRoot + path.sep)) throw httpError(403, "Path escapes its layer root");
-  return { abs, layer, rel, root, ext: path.extname(abs).toLowerCase() };
+  if (realAbs !== realRoot && !realAbs.startsWith(realRoot + path.sep)) throw httpError(403, message);
+  return realAbs;
 }
 
 function safeRealpath(p) {
@@ -557,35 +599,49 @@ function serveStatic(pathname, res) {
 }
 
 // Serve the built console under /console/. SPA fallback: any path without a file
-// extension (a client-side route) resolves to index.html. Guarded against
-// traversal (normalized path must stay inside CONSOLE_DIR) and symlink escape
-// (realpath re-checked), matching the file-API guards above.
+// extension (a client-side route) resolves to index.html. Containment is the
+// same assertInsideRoot guard as the file APIs — one canonical implementation.
 function serveConsole(pathname, res) {
   let rel = pathname.replace(/^\/console\/?/, "");
   if (rel === "" || !path.extname(rel)) rel = "index.html"; // SPA route → shell
   const filePath = path.join(CONSOLE_DIR, rel);
-  if (filePath !== CONSOLE_DIR && !filePath.startsWith(CONSOLE_DIR + path.sep)) {
-    return json(res, 403, { error: "Forbidden" });
-  }
-  const send = (target) => fs.readFile(target, (err, data) => {
+  const real = assertInsideRoot(filePath, CONSOLE_DIR, "Forbidden");
+  fs.readFile(real, (err, data) => {
     if (err) {
       // Missing client route (no extension already rewritten) shouldn't 404;
       // a genuinely missing asset does.
       if (rel !== "index.html") return json(res, 404, { error: "Not found" });
       return json(res, 404, { error: "Console build not found — run `npm run build:live` in console/" });
     }
-    res.writeHead(200, { "content-type": MIME[path.extname(target)] ?? "application/octet-stream" });
+    res.writeHead(200, { "content-type": MIME[path.extname(real)] ?? "application/octet-stream" });
     res.end(data);
   });
-  // Symlink guard: a symlink inside CONSOLE_DIR could still point outside it.
-  // Compare realpath'd target against the realpath'd root.
-  fs.realpath.native(filePath, (rErr, real) => {
-    if (rErr) return send(filePath); // ENOENT etc. → let readFile produce the 404
-    if (real !== CONSOLE_DIR_REAL && !real.startsWith(CONSOLE_DIR_REAL + path.sep)) {
-      return json(res, 403, { error: "Forbidden" });
-    }
-    send(real);
-  });
+}
+
+// /console/ requested but the server was started without --console: explain how
+// to get Explore instead of dumping a raw JSON 404 as the whole page.
+function consoleNotMounted(res) {
+  const html = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ContextCake · Explore is not mounted</title>
+<style>
+  body { margin:0; display:grid; place-items:center; min-height:100vh; background:#10110f; color:#f3efe6;
+         font:14px/1.55 "Bricolage Grotesque", system-ui, sans-serif; }
+  main { max-width:34rem; padding:2rem; }
+  h1 { font-size:1.15rem; margin:0 0 0.6rem; }
+  p { color:#c9c4b4; margin:0.4rem 0; }
+  code { font-family:"JetBrains Mono", ui-monospace, monospace; font-size:0.9em; background:#1a1b17;
+         border:1px solid rgba(235,226,207,0.14); border-radius:6px; padding:0.15rem 0.4rem; }
+  a { color:#8dc3a8; }
+</style></head><body><main>
+  <h1>Explore (the console) isn't mounted on this server</h1>
+  <p>This playground was started without the console. To run both modes from one origin:</p>
+  <p><code>npm run console:live</code></p>
+  <p>That builds the console and restarts this server with <code>--console console/dist</code>.</p>
+  <p><a href="/">&larr; Back to Configure</a></p>
+</main></body></html>`;
+  res.writeHead(503, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+  res.end(html);
 }
 
 // ---- helpers ---------------------------------------------------------------
