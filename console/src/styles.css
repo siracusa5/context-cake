@@ -220,6 +220,41 @@ button { font-family: inherit; }
   white-space: nowrap;
 }
 
+/* Explore | Configure — the app's two modes (segmented control). */
+.cc-mode-switch {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 11px;
+  background: rgba(21,25,23,0.06);
+  margin-bottom: 6px;
+}
+:root[data-theme="dark"] .cc-mode-switch { background: rgba(243,239,230,0.06); }
+.cc-mode-btn {
+  flex: 1 1 0;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--cc-caption);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+.cc-mode-btn[aria-current="true"] {
+  background: var(--cc-header-bg);
+  color: var(--cc-ink);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.14);
+}
+.cc-mode-btn[aria-disabled="true"] { opacity: 0.42; cursor: not-allowed; }
+.cc-mode-btn:not([aria-current="true"]):not([aria-disabled="true"]):hover { color: var(--cc-ink); }
+
 .cc-nav {
   display: flex;
   flex-direction: column;
@@ -227,6 +262,15 @@ button { font-family: inherit; }
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+}
+.cc-nav-group {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cc-text-faint, var(--cc-caption));
+  padding: 8px 12px 4px;
 }
 
 .cc-nav-button {

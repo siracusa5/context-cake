@@ -25,7 +25,7 @@ const NAV: Array<{ id: ViewId; label: string; icon: ReactNode }> = [
   },
   {
     id: 'concepts',
-    label: 'Sources',
+    label: 'Concepts',
     icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="7" r="2.2" /><circle cx="18" cy="6" r="2.2" /><circle cx="12" cy="17" r="2.2" /><path d="M7.6 8.6 10.6 15M16.4 7.7 13 15.4M8 7h7.8" /></svg>,
   },
 ]
@@ -49,11 +49,20 @@ export function Sidebar({ onReopenSetup, onNavigate }: { onReopenSetup?: () => v
         <div className="cc-brand-mark" aria-hidden="true">C</div>
         <div>
           <div className="cc-brand-name">ContextCake</div>
-          <div className="cc-brand-meta">Platform / Prod</div>
+          <div className="cc-brand-meta">Team knowledge</div>
         </div>
       </div>
 
-      <nav className="cc-nav" aria-label="Primary navigation">
+      <div className="cc-mode-switch" role="group" aria-label="Mode">
+        <button type="button" className="cc-mode-btn" aria-current="true">Explore</button>
+        {mode === 'live' ? (
+          <a className="cc-mode-btn" href="/" title="Switch to Configure — set up sources and edit layers">Configure</a>
+        ) : (
+          <span className="cc-mode-btn" aria-disabled="true" title="Run ContextCake locally (npm run console:live) to configure sources">Configure</span>
+        )}
+      </div>
+
+      <nav className="cc-nav" aria-label="Explore navigation">
         {NAV.map((item) => {
           const badge = badgeFor(item.id)
           return (
