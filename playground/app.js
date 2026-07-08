@@ -878,7 +878,8 @@ async function checkForUpdatePlayground() {
   const tag = release.tag_name;
   const latest = tag.replace(UPDATE_TAG_PREFIX, "");
   if (!latest || updateCompareVersions(latest, PLAYGROUND_VERSION) <= 0) return null;
-  const url = typeof release.html_url === "string" && release.html_url
+  // Scheme-check the API-provided URL before it becomes a clickable href.
+  const url = typeof release.html_url === "string" && release.html_url.startsWith("https://")
     ? release.html_url
     : `https://github.com/ContextCake/context-cake/releases/tag/${tag}`;
   return { latest, url };

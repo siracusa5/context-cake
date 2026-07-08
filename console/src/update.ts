@@ -86,7 +86,9 @@ export async function checkForUpdate(currentVersion: string): Promise<UpdateInfo
     return null
   }
 
-  const result: UpdateInfo = { latest, url: typeof htmlUrl === 'string' && htmlUrl ? htmlUrl : `https://github.com/ContextCake/context-cake/releases/tag/${tag}` }
+  // Scheme-check the API-provided URL before it becomes a clickable href.
+  const safeUrl = typeof htmlUrl === 'string' && htmlUrl.startsWith('https://') ? htmlUrl : `https://github.com/ContextCake/context-cake/releases/tag/${tag}`
+  const result: UpdateInfo = { latest, url: safeUrl }
   cached = result
   return result
 }
