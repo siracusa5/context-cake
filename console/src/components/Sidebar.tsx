@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { useStore, type ViewId } from '../store'
+import { C, css } from '../theme'
 import { ThemeToggle } from './ThemeToggle'
 
 const NAV: Array<{ id: ViewId; label: string; icon: ReactNode }> = [
@@ -30,7 +31,7 @@ const NAV: Array<{ id: ViewId; label: string; icon: ReactNode }> = [
   },
 ]
 
-export function Sidebar() {
+export function Sidebar({ onReopenSetup }: { onReopenSetup?: () => void }) {
   const { view, setView, openChat, signals, conflicts } = useStore()
   const triageCount = signals.filter((s) => s.route === 'review_required').length
   const openConflicts = conflicts.filter((c) => c.status === 'open').length
@@ -66,6 +67,15 @@ export function Sidebar() {
       </nav>
 
       <div className="cc-top-actions">
+        {onReopenSetup && (
+          <button
+            type="button"
+            onClick={onReopenSetup}
+            style={css(`display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:999px; background:${C.amberFill}; border:1px solid ${C.amberStroke}; color:${C.amberText}; font:inherit; font-size:12px; font-weight:600; cursor:pointer;`)}
+          >
+            Finish setup
+          </button>
+        )}
         <div className="cc-status-pill"><span className="cc-status-dot" /><strong>Sync</strong>42s ago</div>
         <div className="cc-status-pill"><span className="cc-status-dot warn" /><strong>Policy</strong>{openConflicts} pending</div>
         <button className="cc-ask-button" onClick={openChat}>

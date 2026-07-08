@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useStore } from './store'
 import { C, css, MONO } from './theme'
 import { Sidebar } from './components/Sidebar'
@@ -9,6 +9,7 @@ import { Triage } from './views/Triage'
 import { Conflicts } from './views/Conflicts'
 import { Concepts } from './views/Concepts'
 import { ChatPanel } from './components/ChatPanel'
+import { SetupWizard } from './components/SetupWizard'
 import type { LiveErrorKind } from './api'
 
 const ERROR_COPY: Record<LiveErrorKind, (msg: string) => string> = {
@@ -56,7 +57,22 @@ function ErrorState({ kind, message, reload }: { kind: LiveErrorKind; message: s
 }
 
 export function App() {
-  const { view, chatOpen, route, loading, error, reload } = useStore()
+  const { view, chatOpen, route, loading, error, reload, mode, sources } = useStore()
+  // Undefined = not yet decided by the auto-trigger effect below; true/false
+  // once the user (or the trigger) has taken an explicit stance. Kept separate
+  // from `needsSetup` so the wizard's own Success step stays visible even
+  // after a source is added and `sources.length` flips away from zero.
+  const [wizardOpen, setWizardOpen] = useState<boolean | undefined>(undefined)
+
+  const needsSetup = mode === 'live' && !loading && !error && sources.length === 0
+
+  useEffect(() => {
+    if (needsSetup && wizardOpen === undefined) setWizardOpen(true)
+  }, [needsSetup, wizardOpen])
+
+  const showWizard = wizardOpen === true
+  const closeWizard = () => setWizardOpen(false)
+  const reopenWizard = () => setWizardOpen(true)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -74,28 +90,43 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [view, chatOpen, route])
 
-  if (loading) return <LoadingState />
-  if (error) return <ErrorState kind={error.kind} message={error.message} reload={reload} />
+  // The wizard's own reload() (step 6, Success) briefly flips `loading` true.
+  // SetupWizard is rendered once, at a single stable position in the tree
+  // (outside the loading/error/shell swap below), so its local step state
+  // survives that reload instead of being unmounted and reset to step 1.
+  let body: React.ReactNode
+  if (loading) {
+    body = <LoadingState />
+  } else if (error) {
+    body = <ErrorState kind={error.kind} message={error.message} reload={reload} />
+  } else {
+    body = (
+      <div className="cc-app-shell">
+        <div className="cc-shell-inner">
+          <Sidebar onReopenSetup={needsSetup ? reopenWizard : undefined} />
+          <Header />
+          {view === 'canvas' ? (
+            <main className="cc-main cc-main-canvas">
+              <Canvas />
+            </main>
+          ) : (
+            <main className="cc-main">
+              {view === 'overview' && <Overview />}
+              {view === 'triage' && <Triage />}
+              {view === 'conflicts' && <Conflicts />}
+              {view === 'concepts' && <Concepts />}
+            </main>
+          )}
+        </div>
+        {chatOpen && <ChatPanel />}
+      </div>
+    )
+  }
 
   return (
-    <div className="cc-app-shell">
-      <div className="cc-shell-inner">
-        <Sidebar />
-        <Header />
-        {view === 'canvas' ? (
-          <main className="cc-main cc-main-canvas">
-            <Canvas />
-          </main>
-        ) : (
-          <main className="cc-main">
-            {view === 'overview' && <Overview />}
-            {view === 'triage' && <Triage />}
-            {view === 'conflicts' && <Conflicts />}
-            {view === 'concepts' && <Concepts />}
-          </main>
-        )}
-      </div>
-      {chatOpen && <ChatPanel />}
-    </div>
+    <>
+      {body}
+      {showWizard && <SetupWizard onClose={closeWizard} />}
+    </>
   )
 }
