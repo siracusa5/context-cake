@@ -3,12 +3,12 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>ContextCake · Cascade Playground</title>
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%230a0d12'/%3E%3Cpath d='M2.5 6.5h11M2.5 9.5h11' stroke='%2334d399' stroke-width='1.4' stroke-linecap='round'/%3E%3Cpath d='M2.5 12.5h11' stroke='%23a78bfa' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E" />
+    <title>ContextCake · Configure</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%2310110f'/%3E%3Cpath d='M2.5 6.5h11M2.5 9.5h11' stroke='%238dc3a8' stroke-width='1.4' stroke-linecap='round'/%3E%3Cpath d='M2.5 12.5h11' stroke='%23d9ab53' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=JetBrains+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./styles.css" />
@@ -46,9 +46,14 @@
           </span>
           <span class="brand__text">
             <strong>ContextCake</strong>
-            <span>Cascade Playground</span>
+            <span>Configure</span>
           </span>
         </button>
+
+        <div class="app-mode-switch" role="group" aria-label="Mode">
+          <a class="app-mode-btn" href="/console/" title="Switch to Explore — browse the resolved knowledge graph">Explore</a>
+          <button type="button" class="app-mode-btn" aria-current="true">Configure</button>
+        </div>
 
         <div class="mode-toggle" role="tablist" aria-label="View">
           <button class="mode-btn is-active" data-mode="canvas" role="tab" aria-selected="true" type="button">

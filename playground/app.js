@@ -1211,9 +1211,9 @@ function renderBudget() {
   const total = g.totals.sourceTokens || 1;
   const ordered = [...g.sources].sort((a, b) => b.tokens - a.tokens);
   const bar = ordered.map((s) =>
-    `<div class="budget__seg" style="width:${(s.tokens / total * 100).toFixed(2)}%;background:${state.colors[s.name] ?? "#3a4658"}" title="${escapeAttr(s.name)}"></div>`).join("");
+    `<div class="budget__seg" style="width:${(s.tokens / total * 100).toFixed(2)}%;background:${state.colors[s.name] ?? "#4a463d"}" title="${escapeAttr(s.name)}"></div>`).join("");
   const legend = ordered.map((s) =>
-    `<span class="budget__key"><i style="background:${state.colors[s.name] ?? "#3a4658"}"></i><b>${escapeHtml(s.name)}</b> <span>${fmtNum(s.tokens)} · ${(s.tokens / total * 100).toFixed(0)}%</span></span>`).join("");
+    `<span class="budget__key"><i style="background:${state.colors[s.name] ?? "#4a463d"}"></i><b>${escapeHtml(s.name)}</b> <span>${fmtNum(s.tokens)} · ${(s.tokens / total * 100).toFixed(0)}%</span></span>`).join("");
   document.getElementById("budget").innerHTML = `
     <div class="budget__top">
       <div class="budget__figure"><span class="budget__num">${fmtNum(g.totals.sourceTokens)}</span><span class="budget__unit">context tokens across ${g.totals.sources} source${g.totals.sources === 1 ? "" : "s"}</span></div>
@@ -1236,7 +1236,7 @@ function renderSourcesTable() {
 }
 
 function sourceRow(s, total) {
-  const color = state.colors[s.name] ?? "#3a4658";
+  const color = state.colors[s.name] ?? "#4a463d";
   const pct = total ? (s.tokens / total) * 100 : 0;
   const loc = s.kind === "github" && s.origin
     ? `<a href="${escapeAttr(s.origin.replace(/\.git$/, ""))}" target="_blank" rel="noopener">${escapeHtml(s.origin.replace(/^https:\/\/github\.com\//, "").replace(/\.git$/, ""))}</a>`
