@@ -3,27 +3,27 @@ import Base from '../../layouts/Base.astro';
 import CodeBlock from '../../components/CodeBlock.astro';
 
 const packSections = [
-	['overview/', 'What the pack covers, who it is for, and the standards it tries to make consistent.'],
-	['workflows/', 'Repeatable step-by-step playbooks for real tasks, not generic AI advice.'],
-	['templates/', 'Reusable deliverables for specs, summaries, checklists, and handoffs.'],
-	['examples/', 'Concrete examples that show what strong output looks like in practice.'],
-	['local-overlay/', 'A place for team-specific rules and exceptions that should stay outside the base pack.'],
-	['updates/', 'Changelog and merge guidance so revisions stay visible and reviewable.'],
+	['overview/', 'What ContextCake is, the problem it solves, and the mental model.'],
+	['architecture/', 'Federated storage, the resolver, section merge, conflicts, OKF, and the MCP server.'],
+	['getting-started/', 'Install, resolve your first cascade, write a layer, connect an agent.'],
+	['examples/', 'A real OKF concept, a working layers.json, and a resolved read_file payload.'],
+	['nuances/', 'The sharp edges: precedence, the trust boundary, conflicts-not-hidden.'],
+	['tool-guides/', 'Use the pack with Claude Code, ChatGPT, Cursor, and Copilot.'],
 ];
 
 const featuredPack = {
-	name: 'Data & Analytics Teams',
-	href: '/packs/data-analytics-teams',
+	name: 'ContextCake Context Pack',
+	href: '/packs/contextcake',
 	status: 'Free preview',
 	summary:
-		'For teams that field the same dashboard, metric, and stakeholder questions every week.',
-	bestFor: 'Small analytics teams answering recurring requests and writing stakeholder-facing insight.',
+		'Everything an AI agent needs to actually use ContextCake in your project — architecture, OKF, resolver, MCP, install, and the sharp edges.',
+	bestFor: 'Developers adopting or building on ContextCake who want their AI assistant to know how it works.',
 	benefits: [
-		'Clarify vague requests faster',
-		'Keep metric and validation rules consistent',
+		'Understand the architecture fast',
+		'Get an agent productive with the MCP server',
 		'Read the full pack free while it’s in preview',
 	],
-	includes: ['Clarify + validate workflows', 'Spec, checklist & summary templates', 'Worked examples', 'Local overlay guide', 'Update notes included'],
+	includes: ['Overview + mental model', 'Architecture deep-dive', 'Getting-started guides', 'Real examples', 'Nuances & gotchas'],
 	formats: ['Plain markdown files', 'Claude Code plugin', 'OKF-compatible structure'],
 };
 
@@ -33,13 +33,14 @@ const heroPoints = [
 	'Keep team-specific edits in a local overlay',
 ];
 
-const structurePreview = `data-analytics-team/
+const structurePreview = `contextcake/
 ├── overview/
-├── workflows/
-├── templates/
+├── architecture/
+├── getting-started/
+├── use-cases/
 ├── examples/
-├── local-overlay/
-└── updates/`;
+├── nuances/
+└── tool-guides/`;
 ---
 
 <Base
