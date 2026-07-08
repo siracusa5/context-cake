@@ -565,6 +565,7 @@ async function applyMerge() {
 function wireChrome() {
   el.omni.addEventListener("input", (e) => { state.filter = e.target.value; renderConceptList(); });
   document.getElementById("syncBtn").addEventListener("click", sync);
+  document.getElementById("topbarSyncBtn").addEventListener("click", sync);
   document.getElementById("fitBtn").addEventListener("click", fitView);
 
   // The brand mark reads like a hamburger — so let it collapse/expand the rail.
@@ -824,7 +825,11 @@ function escapeAttr(v) { return escapeHtml(v); }
 // demo embed).
 // ===========================================================================
 
-const UPDATE_RELEASES_URL = "https://api.github.com/repos/ContextCake/context-cake/releases/latest";
+// List releases (newest first) and pick the newest ENGINE one: the monorepo
+// tags engine releases `v*` and console releases `console-v*`, and the
+// playground ships with the engine. `/releases/latest` is namespace-blind.
+const UPDATE_RELEASES_URL = "https://api.github.com/repos/ContextCake/context-cake/releases?per_page=20";
+const UPDATE_TAG_PREFIX = /^v(?=\d)/;
 const UPDATE_STORAGE_KEY = "cc-update-check";
 // Bumped manually alongside releases; the playground has no package.json of its own.
 const PLAYGROUND_VERSION = "0.1.0";
@@ -866,14 +871,15 @@ async function checkForUpdatePlayground() {
   } catch {
     return null;
   }
-  const tag = data && data.tag_name;
-  if (typeof tag !== "string" || !tag) return null;
-  // Tags may carry a non-numeric prefix (v1.2.0, console-v0.1.0) — strip
-  // everything up to the first digit so version comparison sees "0.1.0".
-  const latest = tag.replace(/^[^\d]*/, "");
+  const releases = Array.isArray(data) ? data : [];
+  const release = releases.find((r) =>
+    r && typeof r.tag_name === "string" && UPDATE_TAG_PREFIX.test(r.tag_name) && r.draft !== true && r.prerelease !== true);
+  if (!release) return null;
+  const tag = release.tag_name;
+  const latest = tag.replace(UPDATE_TAG_PREFIX, "");
   if (!latest || updateCompareVersions(latest, PLAYGROUND_VERSION) <= 0) return null;
-  const url = typeof data.html_url === "string" && data.html_url
-    ? data.html_url
+  const url = typeof release.html_url === "string" && release.html_url
+    ? release.html_url
     : `https://github.com/ContextCake/context-cake/releases/tag/${tag}`;
   return { latest, url };
 }
