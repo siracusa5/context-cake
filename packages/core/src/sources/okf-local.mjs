@@ -41,8 +41,9 @@ function parseSections(body) {
     const match = line.match(/^(#{1,6})\s+(.+?)\s*$/);
     if (match) {
       pushSection(sections, current);
-      const { key, updated, override } = parseHeadingAttrs(match[2]);
-      current = { key, heading: line, level: match[1].length, lines: [], updated, override };
+      const attrs = parseHeadingAttrs(match[2]);
+      const key = attrs.key ?? normalizeHeading(match[2]);
+      current = { key, heading: line, level: match[1].length, lines: [], updated: attrs.updated, override: attrs.override };
     } else {
       current.lines.push(line);
     }
@@ -51,7 +52,9 @@ function parseSections(body) {
   return sections;
 }
 
-function parseHeadingAttrs(headingText) {
+// Shared with other adapters (files.mjs). `key` is null when the heading has
+// no {#key} attr — callers pick their own fallback keying scheme.
+export function parseHeadingAttrs(headingText) {
   const brace = headingText.match(/\{([^}]*)\}/);
   let key = null;
   let updated = null;
@@ -63,7 +66,6 @@ function parseHeadingAttrs(headingText) {
       else if (token.startsWith("override=")) override = token.slice(9).replace(/^['"]|['"]$/g, "");
     }
   }
-  if (!key) key = normalizeHeading(headingText);
   return { key, updated, override };
 }
 
@@ -73,7 +75,9 @@ function pushSection(sections, section) {
   sections.push(section);
 }
 
-function normalizeHeading(text) {
+// Shared with other adapters (files.mjs): section keys must derive identically
+// across adapters or same-heading sections stop merging between layer kinds.
+export function normalizeHeading(text) {
   return text.replace(/\{[^}]*\}/g, "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
