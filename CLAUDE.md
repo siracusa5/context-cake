@@ -60,7 +60,9 @@ Key files:
 | `packages/core/src/mcp-server.mjs` | stdio MCP server; resolves via resolver.mjs; renders conflicts in markdown |
 | `packages/core/src/sources/okf-local.mjs` | OKF-local source adapter: reads OKF markdown bundles from disk |
 | `packages/core/src/sources/mcp.mjs` | MCP source adapter: spawns a foreign stdio MCP server, translates to OKF |
-| `packages/core/src/sources/index.mjs` | Source factory: builds adapters from a manifest (`okf-local` default, or `mcp`) |
+| `packages/core/src/sources/files.mjs` | Files source adapter: any plain folder of `.md`/`.mdx`/`.txt` docs becomes a layer (OKF parsing when frontmatter present, synthesized sections otherwise) |
+| `packages/core/src/sources/cache.mjs` | TTL cache wrapper for any source adapter (memory + optional disk, `sync()` to invalidate) — opt-in per layer via a manifest `cache` block |
+| `packages/core/src/sources/index.mjs` | Source factory: builds adapters from a manifest (`okf-local` default, `files`, or `mcp`) |
 | `examples/mock-mcp-source/server.mjs` | Runnable non-OKF foreign MCP server for integration tests |
 | `packages/core/src/classify-context.mjs` | Classifies repo events into ignore / local / team_candidate / review_required |
 | `packages/core/src/ingest.mjs` | Batch classifier: events → signals.json |
