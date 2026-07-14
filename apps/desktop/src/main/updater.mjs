@@ -12,6 +12,13 @@ const SIX_HOURS = 6 * 60 * 60 * 1000
 let timer = null
 
 export function initUpdater() {
+  // KNOWN CONSTRAINT (tracked): electron-updater's GitHub provider reads
+  // github.com/ContextCake/context-cake/releases/latest for the WHOLE repo. If
+  // a non-app release (e.g. a console-v* release) becomes "latest", latest-mac.yml
+  // 404s and the check fails (handled gracefully below — never crashes). Until a
+  // dedicated update channel/feed lands, only app-release.yml may publish full
+  // GitHub Releases; console/site release notes must be drafts or prereleases.
+  //
   // Unsigned dev builds can't apply updates; don't even check.
   if (!app.isPackaged) return
   if (!readSettings().updateCheck) return

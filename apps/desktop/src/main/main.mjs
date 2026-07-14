@@ -1,11 +1,54 @@
+import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { app, BrowserWindow, Menu, shell } from 'electron'
+import { app, BrowserWindow, Menu, dialog, shell } from 'electron'
 import { startEngineService } from './service-host.mjs'
 import { buildMenu } from './menu.mjs'
 import { initUpdater } from './updater.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
+
+// A dead stdout/stderr pipe (the launching terminal or parent process went
+// away) must never escalate into an uncaught EPIPE and Electron's raw crash
+// dialog — a GUI app outlives its console. Swallow those writes.
+for (const stream of [process.stdout, process.stderr]) {
+  stream.on('error', () => {})
+}
+
+// Any failure to boot — the engine service can't bind, a packaged path is
+// wrong, the config dir isn't writable — becomes a clean, logged, fast exit
+// with a plain-language dialog, never a hang with no window or a raw stack
+// trace. In smoke/CI mode we skip the modal and just exit non-zero so the
+// job fails fast instead of blocking to timeout.
+function handleFatal(err) {
+  if (err && err.code === 'EPIPE') return
+  const detail = (err && err.stack) || String(err)
+  // Synchronous write: app.exit() below is abrupt and would race an async
+  // console.error, so the diagnostic (and CI's grep for it) could be lost.
+  try { fs.writeSync(2, `[contextcake] fatal: ${detail}\n`) } catch { /* stderr gone */ }
+  if (process.env.CC_SMOKE !== '1' && app.isReady()) {
+    dialog.showErrorBox(
+      'ContextCake could not start',
+      'The local engine failed to start. Please reopen ContextCake. If this keeps '
+        + 'happening, report it at github.com/ContextCake/context-cake/issues.\n\n'
+        + detail,
+    )
+  }
+  app.exit(1)
+}
+
+process.on('uncaughtException', handleFatal)
+process.on('unhandledRejection', handleFatal)
+
+// Pin the app name BEFORE anything reads a userData path (the single-instance
+// lock below already does). Electron otherwise derives the name from
+// package.json — "contextcake-desktop" in dev, and electron-builder does not
+// inject productName into the packaged package.json — so userData would land
+// at …/contextcake-desktop/ while the CLI (src/cli/cli.mjs) reads
+// …/Application Support/ContextCake/. Both sides MUST agree or `contextcake
+// mcp` can't find the manifest the app wrote. Keep this string, the CLI's
+// CONFIG_DIR, and package.json's productName identical.
+app.setName('ContextCake')
 
 if (!app.requestSingleInstanceLock()) {
   app.quit()
@@ -68,11 +111,15 @@ async function smokeCheck() {
       headers: { authorization: `Bearer ${service.token}` },
     })
     const unauth = await fetch(`${service.origin}/api/graph`)
-    if (res.ok && unauth.status === 401) {
-      console.log(`SMOKE OK ${service.origin} api=200 unauth=401`)
+    // Guard the app-name/CLI agreement: userData must resolve under a dir named
+    // "ContextCake" so `contextcake mcp` finds the manifest the app wrote.
+    const userDataName = path.basename(app.getPath('userData'))
+    const okName = userDataName === 'ContextCake'
+    if (res.ok && unauth.status === 401 && okName) {
+      console.log(`SMOKE OK ${service.origin} api=200 unauth=401 userData=${userDataName}`)
       app.exit(0)
     } else {
-      console.error(`SMOKE FAIL api=${res.status} unauth=${unauth.status}`)
+      console.error(`SMOKE FAIL api=${res.status} unauth=${unauth.status} userData=${userDataName}`)
       app.exit(1)
     }
   } catch (err) {
@@ -98,10 +145,10 @@ app.whenReady().then(async () => {
   Menu.setApplicationMenu(buildMenu(() => win))
   initUpdater()
   if (process.env.CC_SMOKE === '1') await smokeCheck()
-})
+}).catch(handleFatal)
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow()
+  if (BrowserWindow.getAllWindows().length === 0) createWindow().catch(handleFatal)
 })
 
 app.on('window-all-closed', () => {

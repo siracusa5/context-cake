@@ -192,6 +192,19 @@ export function createEngineService({
     fs.writeFileSync(MANIFEST, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
   }
 
+  // A rebuild (manifest edit, or a CRUD/sync route) must not close the adapter
+  // set an in-flight read is still iterating — closing an MCP adapter kills its
+  // child and rejects that read's pending calls, silently dropping the source
+  // from the response. Defer the close past a grace window so concurrent reads
+  // finish on the set they started with. unref so a pending close never holds
+  // the process open at exit.
+  const CLOSE_GRACE_MS = 15000;
+  function deferClose(set) {
+    if (!set) return;
+    const t = setTimeout(() => { for (const s of set.sources) s.close?.(); }, CLOSE_GRACE_MS);
+    t.unref?.();
+  }
+
   function openSources() {
     if (closed) throw httpError(503, "Engine service is closed");
     const stamp = manifestStamp();
@@ -200,7 +213,7 @@ export function createEngineService({
     const next = { stamp, manifest, sources: buildSources(manifest, MANIFEST_DIR) };
     const prev = cache;
     cache = next;
-    if (prev) for (const s of prev.sources) s.close?.();
+    deferClose(prev);
     return next;
   }
 
@@ -211,7 +224,7 @@ export function createEngineService({
   function reload() {
     const prev = cache;
     cache = null;
-    if (prev) for (const s of prev.sources) s.close?.();
+    deferClose(prev);
     return getSources();
   }
 

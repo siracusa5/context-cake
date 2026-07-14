@@ -24,6 +24,10 @@ extraResources:
     to: engine/cli
   - from: resources/bin
     to: bin
+  # Ship package.json at Resources root so the packaged CLI can read its
+  # version (cli.mjs resolves ../../package.json → Resources/package.json).
+  - from: package.json
+    to: package.json
 
 mac:
   category: public.app-category.developer-tools

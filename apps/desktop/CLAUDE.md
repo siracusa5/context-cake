@@ -36,3 +36,11 @@ npm run dist    # DMG + zip, ad-hoc signed in dev
 - User data layout is contractual (design §5): config in
   `~/Library/Application Support/ContextCake/`, caches in
   `~/Library/Caches/ContextCake/`. Updates must never write to either.
+- **App name is pinned three places that must agree**: `app.setName('ContextCake')`
+  in `src/main/main.mjs`, `productName` in `package.json`, and the CLI's
+  `CONFIG_DIR` in `src/cli/cli.mjs`. They resolve the same `userData` dir the
+  app writes and the CLI reads — a mismatch breaks `contextcake mcp`. The smoke
+  test asserts `userData=ContextCake`.
+- **Known gaps tracked as follow-ups** (not blocking merge): no `build/icon.icns`
+  yet (first DMG would carry the stock Electron icon); the updater reads the
+  repo-wide GitHub "latest" release (see the comment in `updater.mjs`).

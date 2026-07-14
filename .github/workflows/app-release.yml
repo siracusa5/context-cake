@@ -29,11 +29,21 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify tag is on main
+      - name: Verify tag is on main and matches package version
         run: |
           git fetch origin main
           if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
             echo "::error::Tag commit $GITHUB_SHA is not an ancestor of main"
+            exit 1
+          fi
+          # electron-builder + electron-updater key the release, artifact names,
+          # and latest-mac.yml off apps/desktop/package.json version. If the tag
+          # and package version disagree, the release publishes but no installed
+          # app ever updates to it — refuse rather than ship a dead release.
+          TAG_VERSION="${GITHUB_REF_NAME#app-v}"
+          PKG_VERSION="$(node -p 'require("./apps/desktop/package.json").version')"
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME implies version $TAG_VERSION but apps/desktop/package.json is $PKG_VERSION"
             exit 1
           fi
 
@@ -80,12 +90,15 @@ jobs:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: |
           export APPLE_API_KEY="$RUNNER_TEMP/notary-key.p8"
-          npm run dist -- --config.mac.notarize=true
+          # --publish never: on a tag build electron-builder would otherwise try
+          # to auto-publish (and fail without GH_TOKEN, or create a duplicate
+          # v* release). The gh CLI step below is the sole publisher.
+          npm run dist -- --publish never --config.mac.notarize=true
 
       - name: Build (unsigned — no release)
         if: steps.creds.outputs.signed != 'true'
         working-directory: apps/desktop
-        run: npm run dist
+        run: npm run dist -- --publish never
 
       - name: Gatekeeper assessment
         if: steps.creds.outputs.signed == 'true'

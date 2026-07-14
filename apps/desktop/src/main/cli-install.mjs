@@ -21,6 +21,23 @@ export async function installCli(win) {
     return
   }
 
+  // Gatekeeper App Translocation runs a quarantined app from an ephemeral,
+  // randomized mount; a DMG mounts read-only under /Volumes. Symlinking into
+  // either points /usr/local/bin/contextcake at a path that vanishes when the
+  // app quits or the image unmounts — the exact scenario that leaves
+  // `contextcake mcp` dead. Refuse and tell the user to move the app first.
+  if (cliShim.includes('/AppTranslocation/') || cliShim.startsWith('/Volumes/')) {
+    await dialog.showMessageBox(win, {
+      type: 'warning',
+      message: 'Move ContextCake to Applications first.',
+      detail:
+        'ContextCake is running from the disk image or a temporary quarantine '
+        + 'location. Drag ContextCake into your Applications folder, reopen it '
+        + 'from there, then install the command line tool.',
+    })
+    return
+  }
+
   try {
     fs.mkdirSync(path.dirname(LINK), { recursive: true })
     try {

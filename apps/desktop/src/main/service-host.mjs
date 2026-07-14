@@ -18,6 +18,14 @@ function ensureConfig() {
 }
 
 export async function startEngineService() {
+  // Test seam (CI + agents): force the boot-failure path so we can assert the
+  // app fails fast with a clean exit instead of hanging with no window — the
+  // regression behind the "JavaScript error occurred in the main process"
+  // crash dialog. Real startEngineService failures (port bind, bad packaged
+  // path, unwritable config dir) reach the same handler.
+  if (process.env.CC_FORCE_BOOT_FAIL === '1') {
+    throw new Error('CC_FORCE_BOOT_FAIL: simulated engine boot failure')
+  }
   ensureConfig()
   const { serviceModule, consoleDist } = enginePaths()
   const { createEngineService } = await import(pathToFileURL(serviceModule).href)

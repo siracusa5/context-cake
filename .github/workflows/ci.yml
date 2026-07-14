@@ -96,6 +96,9 @@ jobs:
     # macOS runner: Electron needs a real windowing environment, and this is
     # the platform the app ships on.
     runs-on: macos-14
+    # Hard cap so a boot hang fails in minutes, not at the 6-hour default on a
+    # 10x-billed macOS runner.
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -124,6 +127,10 @@ jobs:
         working-directory: apps/desktop
         shell: bash
         run: npm run smoke | tee smoke.log && grep -q "SMOKE OK" smoke.log
+
+      - name: Smoke test (boot failure fails fast, no hang)
+        working-directory: apps/desktop
+        run: npm run smoke:bootfail
 
   required:
     name: required

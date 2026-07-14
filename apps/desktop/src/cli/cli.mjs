@@ -22,7 +22,9 @@ function engineSrc() {
   process.exit(1)
 }
 
-// Same dir the app uses (app.getPath('userData') for productName ContextCake).
+// Must match the app's app.getPath('userData'), which is pinned to
+// "ContextCake" via app.setName in src/main/main.mjs. If you change one, change
+// both — otherwise `contextcake mcp` can't find the manifest the app wrote.
 const CONFIG_DIR = path.join(os.homedir(), 'Library', 'Application Support', 'ContextCake')
 const DEFAULT_MANIFEST = path.join(CONFIG_DIR, 'manifest.json')
 

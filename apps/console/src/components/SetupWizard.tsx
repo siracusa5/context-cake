@@ -184,7 +184,7 @@ export function SetupWizard({ onClose }: { onClose: () => void }) {
     setSuccessBusy(true)
     reload()
     try {
-      const res = await fetch('/api/graph', { headers: { accept: 'application/json' } })
+      const res = await apiFetch('/api/graph', { headers: { accept: 'application/json' } })
       if (res.ok) {
         const graph = (await res.json()) as GraphSummary
         setSuccessConcept(graph.concepts[0]?.id ?? null)
