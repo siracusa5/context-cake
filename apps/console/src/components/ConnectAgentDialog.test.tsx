@@ -18,6 +18,7 @@ function desktop(status: 'installed' | 'missing' = 'installed') {
   window.__CC_DESKTOP = {
     token: 'test',
     version: '0.1.0',
+    authState: { signedIn: false },
     cli: {
       getStatus: () => getStatus(),
       install: () => install(),

@@ -127,6 +127,10 @@ jobs:
         working-directory: apps/desktop
         run: npm run test:navigation
 
+      - name: Test desktop auth and settings sync
+        working-directory: apps/desktop
+        run: npm test
+
       - name: CLI status test
         working-directory: apps/desktop
         run: npm run test:cli-status

@@ -30,6 +30,8 @@ extraResources:
   # app entry point and pack fails its asar sanity check. package.json ships
   # inside app.asar (via the `files` globs above); `contextcake --version`
   # degrades to "unknown" in the packaged CLI, which is best-effort by design.
+  - from: build/supabase-config.json
+    to: supabase-config.json
 
 mac:
   category: public.app-category.developer-tools

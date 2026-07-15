@@ -1,105 +1,116 @@
 # ContextCake Console
 
-A React + TypeScript implementation of the **ContextCake Console** design
-(exported from Claude Design). It replaces the old "Mission Control" dashboard
-with one cohesive tool for understanding and resolving a team's knowledge
-cascade — Company → Team → Personal, where higher layers override per section.
+The React front end for inspecting a resolved ContextCake cascade. It runs in
+three environments from the same codebase:
 
-This is the web front-end package of the ContextCake repo; it lives at
-`apps/console/` alongside the dependency-free cascade engine in `packages/core/`. Run all
-commands below from `apps/console/`.
+- **demo** — bundled sample data for the public site;
+- **live browser** — reads the local engine through `/api/graph`,
+  `/api/resolve*`, and the source-management endpoints;
+- **ContextCake for Mac** — the live build inside Electron, with native folder
+  selection, CLI actions, optional account sync, and a per-launch API token.
+
+Run commands below from `apps/console/`.
 
 ## Stack
 
-- **React 18** + **TypeScript**, bundled with **Vite**
-- No CSS framework — the console mixes token-driven CSS in `src/styles.css`
-  with existing inline `css()` helpers from `src/theme.ts`.
-- **Theming** — every color is a CSS variable (`src/styles.css`) with a light
-  soft control plane set and a dark primary surface. `C` in `src/theme.ts`
-  holds the variable references, and `css()` remaps any literal hex written
-  inline onto the same variables, so the whole app themes by flipping
-  `data-theme` on `<html>`. Dark-first, persisted in `localStorage`, toggled
-  from the shell chrome (`src/theme-mode.tsx`, `src/components/ThemeToggle.tsx`).
+- React 19, TypeScript, and Vite
+- Vitest for component and layout behavior
+- Token-driven CSS in `src/styles.css` plus the existing `css()` helpers in
+  `src/theme.ts`
+- Dark/light themes persisted in localStorage; the desktop bridge also syncs
+  the theme when an account is signed in
 
-## Run
+## Commands
 
 ```bash
-npm install
-npm run dev        # dev server (default http://localhost:5173)
-npm run typecheck  # tsc --noEmit
-npm run build      # typecheck (tsc) + production build to dist/
-npm run preview    # serve the production build
+npm ci
+npm run dev          # Vite dev server, normally http://localhost:5173
+npm run typecheck    # tsc --noEmit
+npm test             # Vitest
+npm run build        # demo build
+npm run build:live   # live/Electron build at /console/
+npm run preview      # serve the production build
+```
+
+To exercise live mode with the local engine, build the Console and use the root
+playground/service command documented in the repository instructions.
+
+## Product flow
+
+- **Canvas** lays concepts into Company, Team, and Personal lanes. Columns are
+  reused when their occupied lanes do not collide, keeping sparse cascades
+  compact. Pan, zoom, fit, concept detail, and dissent links remain available.
+- **Overview** summarizes live sources, concepts, and conflicts. Recent activity
+  is demo-only until the engine exposes an activity API.
+- **Queue** demonstrates review, stored, and discarded signal routing in demo
+  mode; live/Desktop mode has no signal API yet and is read-only.
+- **Resolve** compares live dissenting layers. Resolution mutations currently
+  apply only in demo mode; live/Desktop mode is read-only.
+- **Concepts** shows the effective concept with per-section provenance.
+- **Ask ContextCake** uses the resolved cascade when a compatible
+  `window.claude.complete` harness bridge is present. Otherwise it returns a
+  visibly labeled sample answer; Electron does not currently provide that
+  completion bridge.
+- **Settings** opens from the sidebar or Cmd/Ctrl-comma. General holds theme and
+  update preferences; Account holds optional desktop GitHub sign-in, sync state,
+  sign-out, and self-service deletion.
+
+The desktop sidebar remembers its expanded width, can be resized by pointer or
+keyboard, and collapses to a 72px icon rail. On narrow screens it becomes a
+full-width off-canvas drawer.
+
+## First run
+
+Live mode opens setup when no source exists:
+
+1. Personal is the minimum required layer. In the Mac app, choose a local
+   folder with the native browser or paste its path.
+2. Team is optional and can use a local folder or GitHub repository.
+3. Company knowledge is optional. Only connect an MCP server when your
+   organization provided the command and you trust its source: that command
+   runs locally with your Mac user permissions.
+4. Review the layers, finish setup, then use **Connect an agent** for the MCP
+   client instructions.
+
+Machine-local paths and MCP execution details are never activated from synced
+metadata; each Mac requires its own local setup.
+
+## Structure
+
+```text
+src/
+  api.ts                  demo/live adapters and authenticated desktop fetch
+  store.tsx               application state and live reload/actions
+  theme.ts                CSS-variable references and style helpers
+  theme-mode.tsx          local theme plus optional desktop sync
+  App.tsx                 shell, modal coordination, and keyboard ownership
+  components/
+    Sidebar.tsx           navigation, resize/collapse, mobile drawer
+    SettingsView.tsx      full-window General and Account settings
+    AccountPanel.tsx      desktop auth and settings-sync controls
+    SetupWizard.tsx       first-run source configuration
+    ConnectAgentDialog.tsx
+    ChatPanel.tsx
+  views/
+    Canvas.tsx
+    Overview.tsx
+    Triage.tsx
+    Conflicts.tsx
+    Concepts.tsx
+  styles.css
 ```
 
 ## Deploy
 
-Hosted on **Cloudflare Pages** (project `contextcake-console`). The build output
-is the static `dist/` directory — any static host works.
+Cloudflare Pages project `contextcake-console` serves `dist/`. A merge to
+`main` is not a production release: production deploys from `console-v*` tags
+or an explicit Wrangler deploy. See [`../../docs/go-live.md`](../../docs/go-live.md)
+for the complete surface-level release contract.
 
 ```bash
 npm run build
 npx wrangler pages deploy dist --project-name=contextcake-console --branch=main
 ```
 
-CI mirrors this (workflows live at the repo root, path-filtered to `apps/console/**`):
-pushing to `main` publishes a Pages preview
-(`.github/workflows/console-preview.yml`); tagging `console-v*` deploys
-production (`.github/workflows/console-deploy.yml`). Both need the
-`CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets — until
-those are set, the workflows still run typecheck + build and simply skip the
-deploy step.
-
-Merging to `main` does not make the console production-live by itself. For the
-surface-level release contract, see [`../../docs/go-live.md`](../../docs/go-live.md).
-
-## What's inside
-
-A canvas home, four structured views, and an "Ask ContextCake" slide-over, all
-driven by real state:
-
-- **Canvas** (home) — a dark, dotted, pan/zoom canvas framed by the soft
-  control-plane shell. The three
-  layers are precedence lanes (Personal → Team → Company, highest on top);
-  concepts are node-cards auto-laid-out into their effective lane. Where a lower
-  layer disagrees, an amber dashed edge drops to a "ghost" card showing the
-  overridden value — the provenance/conflict story made spatial. Click a node →
-  concept detail slides in; click a ghost or the resolver CTA → the Conflicts
-  view. Wheel to zoom (toward cursor), drag to pan, plus zoom/fit controls.
-- **Overview** — stat tiles, the cascade as a layer-cake, context-source health
-  with coverage bars, a "Needs you" block, and recent activity.
-- **Triage** — Review / Stored / Discarded tabs, signal cards, and a sticky
-  decision panel that shows *why a signal routed* and *where it lands* in the
-  cake. Keyboard shortcuts on this view: **S** store, **R** keep in review,
-  **D** discard.
-- **Conflicts** — disagreeing layers side by side, the higher one marked
-  `EFFECTIVE`, with one-click resolution (keep / promote / personal override /
-  annotate).
-- **Concepts** — the *resolved* read of each concept with per-section
-  provenance and inline dissent.
-- **Ask ContextCake** — an assistant that answers from the resolved cascade and
-  cites which layer each fact came from. It calls the Claude harness
-  (`window.claude.complete`) when available and falls back to grounded canned
-  answers otherwise.
-
-## Structure
-
-```
-src/
-  theme.ts              tokens (CSS-var refs) + style helpers (lc/rc/badge, css hex→var)
-  theme-mode.tsx        dark/light provider — default dark, persisted, data-theme on <html>
-  data.ts               sample cascade: layers, sources, signals, conflicts, concepts
-  store.tsx             app state + actions (route, resolveConflict, chat send)
-  App.tsx               shell + view routing + S/R/D keyboard handler
-  components/           topbar/subbar chrome, ChatPanel, ConceptDetail, LayerChip, ThemeToggle
-  views/                Canvas, Overview, Triage, Conflicts, Concepts
-  styles.css            shell tokens, light/dark surfaces, hover/focus, canvas dots
-```
-
-## Notes
-
-- The data in `src/data.ts` is illustrative sample content; swap it for live
-  MCP / graph data when wiring to a backend.
-- State is in-memory (React), so triage decisions and conflict resolutions reset
-  on reload — persist them via your API when integrating for real.
-- The original Claude Design handoff (chat transcript, HTML prototype, reference
-  assets) is preserved under `project/` — see `project/HANDOFF.md` for provenance.
+The original design handoff remains under `project/`; see
+`project/HANDOFF.md` for provenance.
