@@ -123,6 +123,10 @@ jobs:
         working-directory: apps/desktop
         run: npm ci
 
+      - name: Navigation guard test
+        working-directory: apps/desktop
+        run: npm run test:navigation
+
       - name: Smoke test (boot + token gate)
         working-directory: apps/desktop
         shell: bash
