@@ -242,6 +242,15 @@ npm --prefix apps/console run build
 # Public site
 npm --prefix apps/site ci
 npm --prefix apps/site run build
+
+# macOS desktop shell (uses the live Console build)
+npm --prefix apps/console run build:live
+npm --prefix apps/desktop ci
+npm --prefix apps/desktop test
+npm --prefix apps/desktop run test:navigation
+npm --prefix apps/desktop run test:cli-status
+npm --prefix apps/desktop run smoke
+npm --prefix apps/desktop run smoke:bootfail
 ```
 
 `npm test` starts a local playground server, so it requires an environment that allows binding to `127.0.0.1`. See [CONTRIBUTING.md](CONTRIBUTING.md) for repository conventions, validation expectations, and issue labels.
