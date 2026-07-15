@@ -5,6 +5,7 @@ import { app, BrowserWindow, Menu, dialog, shell } from 'electron'
 import { startEngineService } from './service-host.mjs'
 import { buildMenu } from './menu.mjs'
 import { initUpdater } from './updater.mjs'
+import { isEngineOrigin } from './navigation.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
@@ -92,7 +93,7 @@ async function createWindow() {
     return { action: 'deny' }
   })
   win.webContents.on('will-navigate', (event, url) => {
-    if (!url.startsWith(service.origin)) {
+    if (!isEngineOrigin(url, service.origin)) {
       event.preventDefault()
       shell.openExternal(url)
     }
