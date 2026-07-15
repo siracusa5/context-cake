@@ -122,7 +122,6 @@ export function createAuthManager({
 
   const withTimeout = (promise, timeoutMs, message) => new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(message)), timeoutMs)
-    timer.unref?.()
     Promise.resolve(promise).then(
       (value) => { clearTimeout(timer); resolve(value) },
       (error) => { clearTimeout(timer); reject(error) },
