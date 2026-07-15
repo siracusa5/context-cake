@@ -1,7 +1,7 @@
 // Sandboxed preload: the ONLY bridge between the console renderer and the
 // desktop shell. Keep this surface tiny — the renderer is a web app that must
 // keep working in browsers where none of this exists.
-const { contextBridge } = require('electron')
+const { contextBridge, ipcRenderer } = require('electron')
 
 function arg(name) {
   const prefix = `--${name}=`
@@ -14,4 +14,8 @@ contextBridge.exposeInMainWorld('__CC_DESKTOP', {
   token: arg('cc-token'),
   // App version, for display. Updates are owned by the native updater.
   version: arg('cc-version'),
+  cli: {
+    getStatus: () => ipcRenderer.invoke('contextcake:cli-status'),
+    install: () => ipcRenderer.invoke('contextcake:cli-install'),
+  },
 })

@@ -3,6 +3,13 @@
 // consumers must treat it as optional.
 export {}
 
+type CliStatus = 'installed' | 'missing' | 'stale' | 'conflict' | 'blocked' | 'development'
+
+interface CliResult {
+  status: CliStatus
+  message: string
+}
+
 declare global {
   interface Window {
     __CC_DESKTOP?: {
@@ -10,6 +17,11 @@ declare global {
       token: string
       /** Desktop app version. Update UX is owned by the app's native updater. */
       version: string
+      /** Fixed native operations for ContextCake's own command-line tool. */
+      cli: {
+        getStatus: () => Promise<CliResult>
+        install: () => Promise<CliResult>
+      }
     }
   }
 }
