@@ -1,11 +1,12 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { app, BrowserWindow, Menu, dialog, shell } from 'electron'
+import { app, BrowserWindow, Menu, dialog, ipcMain, shell } from 'electron'
 import { startEngineService } from './service-host.mjs'
 import { buildMenu } from './menu.mjs'
 import { initUpdater } from './updater.mjs'
 import { isEngineOrigin } from './navigation.mjs'
+import { getCliStatus, installCli } from './cli-install.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
@@ -64,6 +65,12 @@ if (app.isPackaged) {
 
 let service = null
 let win = null
+
+// Fixed, argument-free IPC only. The sandboxed renderer can inspect or invoke
+// ContextCake's own CLI installer; it cannot execute arbitrary processes or
+// choose filesystem paths.
+ipcMain.handle('contextcake:cli-status', () => getCliStatus())
+ipcMain.handle('contextcake:cli-install', () => installCli(win, { showSuccess: false }))
 
 async function createWindow() {
   service ??= await startEngineService()
