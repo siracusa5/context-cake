@@ -11,7 +11,11 @@ architecture, packaging, or update behavior.
 cd apps/desktop
 npm ci
 npm run dev     # build console renderer + launch
+npm test        # auth storage + settings-sync tests
+npm run test:navigation
+npm run test:cli-status
 npm run smoke   # headless boot check: service up, token enforced, exits
+npm run smoke:bootfail
 npm run pack    # unpacked .app (fast) — dist/ is gitignored
 npm run dist    # DMG + zip, ad-hoc signed in dev
 ```

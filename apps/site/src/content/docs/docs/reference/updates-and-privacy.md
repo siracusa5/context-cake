@@ -29,10 +29,9 @@ components ask.
 
 ## It is disable-able
 
-Both surfaces expose a **Check for updates** toggle in the header, next to any
-"update available" notice (a small gear icon opens the setting). It is backed by a
-single localStorage flag, `cc-update-check`, shared by the Console and the
-Playground:
+The Console exposes **Check for updates** under **Settings → General**. The
+Playground keeps the same preference in the small gear menu beside its update
+notice. Both controls use the `cc-update-check` localStorage flag:
 
 - **Console, demo build** (the public `/demo-app/` embed on this site): off by
   default. The public embed is network-silent unless you turn the toggle on.
@@ -83,14 +82,18 @@ The server-side account data includes:
 - Supabase-managed session and refresh-token records;
 - Supabase Auth audit logs, which can include the user ID, IP address, user agent,
   provider metadata, and event timestamps;
-- one owner-only `user_settings` row containing UI preferences, profile definitions,
-  and source configuration metadata.
+- one owner-only `user_settings` row. Its JSON blob is limited to 1,000,000 bytes
+  and can contain only `theme`, `updateCheck`, `activeProfile`, `profiles`, and
+  `sources`. Profile metadata is limited to names/labels, source membership,
+  theme preference, and manifest layers. Source metadata is limited to its
+  name, kind, precedence, repository/ref/origin, cache policy, and scrubbed
+  placeholders for machine-local execution or credentials.
 
 Before upload, ContextCake replaces local source paths, cache directories, executable
 MCP commands and arguments, Keychain references, and `tokenEnv` values with scrub
-markers. It then rejects the entire upload if any credential, personal identifier, or
-context-content pattern remains. Synced integrations therefore require local setup on
-each Mac and can never activate a remote command.
+markers. It then rejects the entire upload if a recognized credential, URL credential,
+email address, or context-content pattern remains. Synced integrations therefore
+require local setup on each Mac and can never activate a remote command.
 
 ContextCake never syncs knowledge or document content, resolved output, integration
 tokens, environment-variable values, absolute local paths, analytics, or telemetry.

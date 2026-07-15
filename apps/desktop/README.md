@@ -16,7 +16,10 @@ npm run renderer   # build the console renderer (needed after console changes)
 npm run start      # launch the app (dev, expects a prior renderer build)
 npm run dev        # renderer + start
 npm test           # auth storage + settings-sync security tests
+npm run test:navigation # exact-origin navigation and IPC guards
+npm run test:cli-status # CLI installation-state detection
 npm run smoke      # boot headlessly, verify the token-guarded service, exit
+npm run smoke:bootfail # startup failures exit instead of hanging
 npm run pack       # unpacked .app in dist/ (ad-hoc signed)
 npm run dist       # DMG + zip in dist/ (ad-hoc signed until release secrets exist)
 ```
@@ -61,7 +64,7 @@ configured retention and are not necessarily removed with the account.
 ## Supabase account setup
 
 1. Start Docker. From the repository root, use the pinned CLI version to test the
-   committed migration, schema lint, and database advisors locally:
+   committed migrations, schema lint, and database advisors locally:
 
    ```bash
    npx --yes supabase@2.109.1 start
@@ -83,7 +86,8 @@ configured retention and are not necessarily removed with the account.
    npx --yes supabase@2.109.1 db push --dry-run
    npx --yes supabase@2.109.1 db push
    ```
-   Run the Database advisors in the Dashboard after deploying.
+   Run the Database advisors in the Dashboard after deploying, and confirm both
+   committed migration versions appear in the hosted migration history.
 3. Create a GitHub OAuth application, using Supabase's provider callback
    `https://<project-ref>.supabase.co/auth/v1/callback`, then add its client
    credentials under **Authentication → Providers**.
@@ -96,6 +100,12 @@ configured retention and are not necessarily removed with the account.
    `sb_publishable_*` or a legacy `anon` JWT; the build rejects privileged keys.
 6. Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as GitHub Actions secrets
    before packaging a release.
+
+The repository-level `.mcp.json` is maintainer tooling for the linked Supabase
+project. It contains the project-scoped endpoint but no credential; each maintainer
+must authenticate it locally. It is not packaged into the Mac app and is unrelated
+to the optional Company MCP source in first-run setup, which executes a locally
+configured command and must come from a trusted source.
 
 ## Release
 

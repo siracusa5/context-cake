@@ -185,6 +185,70 @@ test('failed session refresh degrades to signed out with a passive notice', asyn
   })
 })
 
+test('a refresh that completes after its timeout cannot restore the session', async (t) => {
+  const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'contextcake-late-refresh-'))
+  t.after(() => fs.rmSync(configDir, { recursive: true, force: true }))
+  const initialSession = {
+    expires_at: (Date.now() + 20) / 1000,
+    user: { id: 'user-1', email: 'person@example.com' },
+  }
+  let listener = () => {}
+  const manager = createAuthManager({
+    supabaseUrl: 'https://example.supabase.co',
+    supabaseKey: 'publishable-key',
+    configDir,
+    safeStorage: fakeSafeStorage(),
+    openExternal: async () => {},
+    refreshLeewayMs: 0,
+    refreshTimeoutMs: 5,
+    createClientImpl: (_url, _key, options) => {
+      options.auth.storage.setItem('supabase.session', JSON.stringify(initialSession))
+      return {
+        auth: {
+          onAuthStateChange: (callback) => {
+            listener = callback
+            return { data: { subscription: { unsubscribe() {} } } }
+          },
+          getSession: async () => ({ data: { session: initialSession }, error: null }),
+          refreshSession: async () => new Promise((resolve) => {
+            setTimeout(() => {
+              const lateSession = {
+                expires_at: (Date.now() + 60_000) / 1000,
+                access_token: 'late-access-token',
+                refresh_token: 'late-refresh-token',
+                user: initialSession.user,
+              }
+              options.auth.storage.setItem('supabase.session', JSON.stringify(lateSession))
+              listener('TOKEN_REFRESHED', lateSession)
+              resolve({ data: { session: lateSession }, error: null })
+            }, 30)
+          }),
+        },
+      }
+    },
+  })
+  t.after(() => manager.close())
+
+  assert.equal((await manager.initialize()).signedIn, true)
+  await new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error('refresh timeout event did not arrive')), 500)
+    manager.on('session-changed', (state) => {
+      if (!state.signedIn && state.notice) {
+        clearTimeout(timeout)
+        resolve()
+      }
+    })
+  })
+  await new Promise((resolve) => setTimeout(resolve, 50))
+
+  assert.deepEqual(manager.getState(), {
+    available: true,
+    signedIn: false,
+    notice: 'Your session expired. Sign in again to resume settings sync.',
+  })
+  assert.equal(fs.existsSync(path.join(configDir, 'session.enc')), false)
+})
+
 test('sign-out clears the encrypted local session even when Supabase is offline', async (t) => {
   const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'contextcake-signout-'))
   t.after(() => fs.rmSync(configDir, { recursive: true, force: true }))

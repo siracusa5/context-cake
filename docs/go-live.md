@@ -89,9 +89,13 @@ Do not answer "yes" without naming the surface and the release state.
    sign-ins disabled, enable GitHub, and allow `contextcake://auth/callback`.
 3. Add the public `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` release secrets;
    confirm the key is publishable/legacy-anon, never secret/service-role.
-4. Set `apps/desktop/package.json` to the release version and push the matching
+4. Before tagging, use a packaged build against the hosted project to complete
+   GitHub sign-in and callback, verify a settings round trip from a second macOS
+   user, and delete a test account while confirming both its Auth user and
+   settings row are removed.
+5. Set `apps/desktop/package.json` to the release version and push the matching
    `app-v*` tag from a commit reachable from `main`.
-5. Confirm the workflow's codesign, Gatekeeper, notarization, stapling, checksums,
+6. Confirm the workflow's codesign, Gatekeeper, notarization, stapling, checksums,
    and publication steps pass, then test the downloaded artifact and updater feed.
 
 ### engine / MCP / CLI

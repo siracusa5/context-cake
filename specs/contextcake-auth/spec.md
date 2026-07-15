@@ -71,8 +71,10 @@ stays demo-only) · email/password auth (never, see §7).
   silently) any blob found to contain a credential pattern.
 - [ ] WHEN any sync payload is prepared THE SYSTEM SHALL exclude context
   content and integration tokens categorically — these never leave the device.
-- [ ] WHEN the same account writes from two machines THE SYSTEM SHALL apply
-  last-write-wins by server timestamp (v1) and surface the overwrite in the UI.
+- [ ] WHEN the same account writes from two machines THE SYSTEM SHALL preserve
+  locally dirty fields, accept the remote snapshot for untouched fields, upsert
+  the merged snapshot, and surface when a pull overwrote local values. The
+  server-stamped `updated_at` SHALL describe the committed snapshot.
 
 ### Account lifecycle & privacy
 - [ ] WHEN the user deletes their account THE SYSTEM SHALL self-serve delete
@@ -101,8 +103,8 @@ stays demo-only) · email/password auth (never, see §7).
   off Supabase.
 - 🚫 **Never:** email/password or any custom credential store; integration
   tokens or context content server-side; secrets in the repository; absolute
-  paths or PII in the synced blob (John's global PII rule); auth in the web
-  demo console.
+  paths, email addresses, or intentionally supplied personal data in the synced
+  blob; auth in the web demo console.
 
 ## 8. For the implementing agent
 

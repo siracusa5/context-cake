@@ -16,6 +16,7 @@ const OAUTH_STATE_TTL_MS = 10 * 60 * 1000
 export function createEncryptedStorage({ configDir, safeStorage }) {
   const file = path.join(configDir, 'session.enc')
   const memory = new Map()
+  let writesSuspended = false
 
   const encryptionAvailable = () => {
     try { return safeStorage?.isEncryptionAvailable() === true } catch { return false }
@@ -62,6 +63,7 @@ export function createEncryptedStorage({ configDir, safeStorage }) {
       return typeof value === 'string' ? value : null
     },
     setItem(key, value) {
+      if (writesSuspended) return
       writeMap({ ...readMap(), [key]: value })
     },
     removeItem(key) {
@@ -71,6 +73,13 @@ export function createEncryptedStorage({ configDir, safeStorage }) {
       else writeMap(next)
     },
     clear,
+    suspendWrites() {
+      writesSuspended = true
+      clear()
+    },
+    resumeWrites() {
+      writesSuspended = false
+    },
   }
 }
 
@@ -91,6 +100,7 @@ export function createAuthManager({
   safeStorage,
   openExternal,
   createClientImpl = createClient,
+  fetchImpl = globalThis.fetch,
   bootstrapTimeoutMs = 1500,
   signOutTimeoutMs = 1500,
   refreshTimeoutMs = 10_000,
@@ -99,8 +109,30 @@ export function createAuthManager({
   const events = new EventEmitter()
   const storage = createEncryptedStorage({ configDir, safeStorage })
   const available = Boolean(supabaseUrl && supabaseKey)
+  let activeRefresh = null
+  let refreshDrain = Promise.resolve()
+  const projectOrigin = available ? new URL(supabaseUrl).origin : ''
+  const fetchWithRefreshAbort = (input, init = {}) => {
+    const controller = activeRefresh?.controller
+    if (!controller) return fetchImpl(input, init)
+    try {
+      const rawUrl = typeof input === 'string' || input instanceof URL ? input : input.url
+      const url = new URL(rawUrl)
+      const refreshRequest = url.origin === projectOrigin
+        && url.pathname.endsWith('/auth/v1/token')
+        && url.searchParams.get('grant_type') === 'refresh_token'
+      if (refreshRequest) {
+        const signal = init.signal && typeof AbortSignal.any === 'function'
+          ? AbortSignal.any([init.signal, controller.signal])
+          : controller.signal
+        return fetchImpl(input, { ...init, signal })
+      }
+    } catch { /* delegate malformed or non-URL inputs unchanged */ }
+    return fetchImpl(input, init)
+  }
   const client = available
     ? createClientImpl(supabaseUrl, supabaseKey, {
+        global: { fetch: fetchWithRefreshAbort },
         auth: {
           flowType: 'pkce',
           persistSession: true,
@@ -120,8 +152,11 @@ export function createAuthManager({
 
   const emitState = () => events.emit('session-changed', publicState(available, currentSession, notice))
 
-  const withTimeout = (promise, timeoutMs, message) => new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(message)), timeoutMs)
+  const withTimeout = (promise, timeoutMs, message, onTimeout) => new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      onTimeout?.()
+      reject(new Error(message))
+    }, timeoutMs)
     Promise.resolve(promise).then(
       (value) => { clearTimeout(timer); resolve(value) },
       (error) => { clearTimeout(timer); reject(error) },
@@ -139,11 +174,28 @@ export function createAuthManager({
     const delay = Math.max(10, (session.expires_at * 1000) - Date.now() - refreshLeewayMs)
     refreshTimer = setTimeout(async () => {
       refreshTimer = null
+      const attempt = { controller: new AbortController(), stale: false }
+      activeRefresh = attempt
+      const refreshRequest = Promise.resolve().then(() => client.auth.refreshSession())
+      // Keep session writes fenced until a stale refresh drains. New OAuth
+      // attempts wait for this promise so an old token response can never
+      // overwrite a newer PKCE verifier or session.
+      const drain = refreshRequest.catch(() => {}).finally(() => {
+        if (attempt.stale) storage.clear()
+        if (activeRefresh === attempt) activeRefresh = null
+        storage.resumeWrites()
+      })
+      refreshDrain = drain
       try {
         const { data, error } = await withTimeout(
-          client.auth.refreshSession(),
+          refreshRequest,
           refreshTimeoutMs,
           'Session refresh timed out.',
+          () => {
+            attempt.stale = true
+            storage.suspendWrites()
+            attempt.controller.abort()
+          },
         )
         if (error) throw error
         currentSession = data?.session ?? null
@@ -164,7 +216,11 @@ export function createAuthManager({
   async function initialize() {
     if (!client) return publicState(false, null)
     try {
-      const result = client.auth.onAuthStateChange((_event, session) => {
+      const result = client.auth.onAuthStateChange((event, session) => {
+        // Manual refreshes are committed from refreshSession's returned value
+        // above. Ignoring this duplicate event also prevents a timed-out
+        // request from restoring currentSession after its deadline.
+        if (event === 'TOKEN_REFRESHED') return
         currentSession = session ?? null
         notice = ''
         scheduleRefresh(currentSession)
@@ -188,6 +244,7 @@ export function createAuthManager({
 
   async function signIn() {
     if (!client) throw new Error('Account sign-in is not configured in this build.')
+    await refreshDrain
 
     const pending = (() => {
       try { return JSON.parse(storage.getItem(OAUTH_STATE_KEY)) } catch { return null }
@@ -271,6 +328,11 @@ export function createAuthManager({
   }
 
   async function signOut() {
+    if (activeRefresh) {
+      activeRefresh.stale = true
+      storage.suspendWrites()
+      activeRefresh.controller.abort()
+    }
     try {
       if (client) {
         await withTimeout(client.auth.signOut({ scope: 'local' }), signOutTimeoutMs, 'Sign-out timed out.').catch(() => {})
@@ -293,6 +355,11 @@ export function createAuthManager({
 
   function close() {
     clearRefreshTimer()
+    if (activeRefresh) {
+      activeRefresh.stale = true
+      storage.suspendWrites()
+      activeRefresh.controller.abort()
+    }
     subscription?.unsubscribe?.()
     subscription = null
     events.removeAllListeners()
