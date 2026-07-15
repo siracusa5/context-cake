@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useStore, type ViewId } from '../store'
 import { UpdatePill } from './UpdatePill'
-import contextCakeLogo from '../../../desktop/build/icon.svg'
+
+const contextCakeLogo = `${import.meta.env.BASE_URL}favicon.svg`
 
 const SIDEBAR_PREF_KEY = 'contextcake.sidebar'
 const COLLAPSED_WIDTH = 72
