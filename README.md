@@ -26,7 +26,9 @@
   <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
-<img src="apps/site/public/og.png" alt="ContextCake resolves layered knowledge into one sourced answer" width="100%" />
+<p align="center">
+  <img src="assets/brand/readme-hero.svg" alt="ContextCake resolves layered knowledge into one sourced answer" width="900" />
+</p>
 
 ---
 
