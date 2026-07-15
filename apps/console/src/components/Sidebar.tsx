@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { useStore, type ViewId } from '../store'
+import { AccountPanel } from './AccountPanel'
 import { UpdatePill } from './UpdatePill'
 
 const NAV: Array<{ id: ViewId; label: string; icon: ReactNode }> = [
@@ -82,6 +83,7 @@ export function Sidebar({ onReopenSetup, onNavigate }: { onReopenSetup?: () => v
       </nav>
 
       <div className="cc-sidebar-foot">
+        <AccountPanel />
         {onReopenSetup && (
           <button type="button" className="cc-setup-cta" onClick={onReopenSetup}>
             Finish setup

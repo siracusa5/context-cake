@@ -1,6 +1,6 @@
 ---
-title: Update checks and privacy
-description: What the Console and Playground send when they check for a newer release, and how to turn it off.
+title: Network access and privacy
+description: What update checks and optional desktop account sync send, store, and leave on your Mac.
 ---
 
 The engine itself — `resolver.mjs`, `mcp-server.mjs`, and every other CLI tool — makes
@@ -49,6 +49,33 @@ UI convenience touches the network, it's unauthenticated, minimal, cached, and
 switchable. If you'd rather never make the call — air-gapped environments, strict
 network policies, or just preference — turn the toggle off once and it stays off
 (the flag persists in localStorage).
+
+## Optional desktop accounts
+
+ContextCake for Mac works fully while signed out. Signing in adds settings sync; it
+does not gate the local engine, sources, profiles, resolve tools, or MCP server.
+
+When you sign in with GitHub or Google, authentication runs in your system browser
+through Supabase OAuth with PKCE. The desktop app stores the resulting session only in
+an OS-keychain-encrypted local file. Raw tokens are never exposed to the Console
+renderer or written to logs.
+
+The server-side account data is limited to:
+
+- the email address supplied by the OAuth provider, stored by Supabase Auth;
+- one owner-only `user_settings` row containing UI preferences, profile definitions,
+  and source configuration metadata.
+
+Before upload, ContextCake replaces local source paths, cache directories, executable
+MCP commands and arguments, Keychain references, and `tokenEnv` values with scrub
+markers. It then rejects the entire upload if any credential, personal identifier, or
+context-content pattern remains. Synced integrations therefore require local setup on
+each Mac and can never activate a remote command.
+
+ContextCake never syncs knowledge or document content, resolved output, integration
+tokens, environment-variable values, absolute local paths, analytics, or telemetry.
+Those stay on the Mac. Deleting the account removes the Supabase Auth user and the
+cascading settings row; local ContextCake files and settings are left untouched.
 
 ## Related
 

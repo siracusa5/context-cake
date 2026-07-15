@@ -18,3 +18,4 @@ examples/team-demo/layers/
 examples/team-demo/mcp/
 /mcp-local.json
 layers/personal/
+apps/desktop/build/supabase-config.json

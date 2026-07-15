@@ -2,6 +2,7 @@
 // never credentials (those live in the keychain via safeStorage) and never
 // knowledge content.
 import fs from 'node:fs'
+import path from 'node:path'
 import { settingsPath } from './paths.mjs'
 
 const DEFAULTS = Object.freeze({
@@ -18,8 +19,30 @@ export function readSettings() {
   }
 }
 
-export function writeSettings(patch) {
-  const next = { ...readSettings(), ...patch }
-  fs.writeFileSync(settingsPath(), JSON.stringify(next, null, 2) + '\n')
+function persistSettings(patch, changedFields) {
+  const current = readSettings()
+  const dirtyFields = [...new Set([...(current._sync?.dirtyFields ?? []), ...changedFields])]
+  // The manifest remains the one authoritative local copy of source configs.
+  // Never duplicate paths, commands, or credential references into settings.json.
+  const { sources: _sources, ...diskPatch } = patch
+  const { sources: _currentSources, ...diskCurrent } = current
+  const next = {
+    ...diskCurrent,
+    ...diskPatch,
+    _sync: { ...(current._sync ?? {}), dirty: true, dirtyFields, localUpdatedAt: new Date().toISOString() },
+  }
+  const file = settingsPath()
+  fs.mkdirSync(path.dirname(file), { recursive: true })
+  const temporary = `${file}.tmp`
+  fs.writeFileSync(temporary, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
+  fs.renameSync(temporary, file)
   return next
+}
+
+export function writeSettings(patch) {
+  return persistSettings(patch, Object.keys(patch))
+}
+
+export function markSettingsDirty(fields) {
+  return persistSettings({}, fields)
 }

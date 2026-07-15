@@ -1,0 +1,4 @@
+project_id = "contextcake"
+
+[db.migrations]
+schema_paths = ["./schemas/*.sql"]

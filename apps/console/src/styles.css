@@ -340,6 +340,84 @@ button { font-family: inherit; }
   gap: 8px;
 }
 
+.cc-account {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px;
+  border: 1px solid var(--cc-line);
+  border-radius: 13px;
+  background: var(--cc-neutral-fill);
+}
+
+.cc-account-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--cc-caption);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 9.5px;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.cc-account-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--cc-layer-team);
+  box-shadow: 0 0 0 3px var(--cc-teal-fill);
+}
+
+.cc-account-note,
+.cc-account-email,
+.cc-account-status,
+.cc-account-error {
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+.cc-account-note,
+.cc-account-status { color: var(--cc-caption); }
+.cc-account-email {
+  overflow: hidden;
+  color: var(--cc-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cc-account-error { color: var(--cc-amber-text); }
+
+.cc-account-providers,
+.cc-account-actions {
+  display: grid;
+  gap: 6px;
+}
+.cc-account-providers { grid-template-columns: 1fr; }
+.cc-account-actions { grid-template-columns: 1fr 1fr; }
+
+.cc-account button {
+  min-height: 30px;
+  border: 1px solid var(--cc-line-strong);
+  border-radius: 9px;
+  background: var(--cc-raised);
+  color: var(--cc-ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 650;
+}
+
+.cc-account button:hover:not(:disabled) { border-color: var(--cc-teal-stroke); }
+.cc-account button:focus-visible {
+  outline: 2px solid var(--cc-teal-stroke);
+  outline-offset: 2px;
+}
+.cc-account button:active:not(:disabled) { transform: translateY(1px); }
+.cc-account button:disabled { cursor: wait; opacity: 0.55; }
+.cc-account .cc-account-danger { color: var(--cc-amber-text); }
+
 .cc-util-btn {
   height: 38px;
   flex: 1 1 auto;

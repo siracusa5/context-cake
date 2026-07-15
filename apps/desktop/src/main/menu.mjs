@@ -3,7 +3,7 @@ import { checkInteractive } from './updater.mjs'
 import { installCli } from './cli-install.mjs'
 import { readSettings, writeSettings } from './settings.mjs'
 
-export function buildMenu(getWindow) {
+export function buildMenu(getWindow, onSettingsChange) {
   const template = [
     {
       label: app.name,
@@ -18,7 +18,7 @@ export function buildMenu(getWindow) {
           label: 'Check for Updates Automatically',
           type: 'checkbox',
           checked: readSettings().updateCheck,
-          click: (item) => writeSettings({ updateCheck: item.checked }),
+          click: (item) => onSettingsChange?.(writeSettings({ updateCheck: item.checked })),
         },
         { type: 'separator' },
         {

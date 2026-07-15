@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 
 type Mode = 'dark' | 'light'
 const KEY = 'cc-theme'
@@ -22,11 +22,42 @@ const Ctx = createContext<ThemeCtx | null>(null)
 
 export function ThemeModeProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<Mode>(initialMode)
+  const mounted = useRef(false)
+  const applyingRemote = useRef(false)
+  const modeRef = useRef(mode)
 
   useEffect(() => {
     applyMode(mode)
+    modeRef.current = mode
     try { localStorage.setItem(KEY, mode) } catch { /* ignore */ }
+    if (!mounted.current) {
+      mounted.current = true
+    } else if (applyingRemote.current) {
+      applyingRemote.current = false
+    } else {
+      // Main persists locally first, then uploads when signed in. A rejected
+      // or offline sync never rolls back the local theme choice.
+      window.__CC_AUTH?.syncSettings({ theme: mode }).catch(() => {})
+    }
   }, [mode])
+
+  useEffect(() => {
+    const bridge = window.__CC_AUTH
+    if (!bridge) return
+    bridge.bootstrapTheme(mode).then((incoming) => {
+      if (incoming !== modeRef.current) {
+        applyingRemote.current = true
+        setMode(incoming)
+      }
+    }).catch(() => {})
+    return bridge.onSettingsPulled((settings) => {
+      const incoming = settings.theme
+      if ((incoming === 'light' || incoming === 'dark') && incoming !== modeRef.current) {
+        applyingRemote.current = true
+        setMode(incoming)
+      }
+    })
+  }, [])
 
   const toggle = useCallback(() => setMode((m) => (m === 'dark' ? 'light' : 'dark')), [])
 

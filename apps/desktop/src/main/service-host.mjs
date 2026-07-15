@@ -62,6 +62,9 @@ export async function startEngineService() {
   return {
     origin: `http://127.0.0.1:${port}`,
     token,
+    reload() {
+      return service.reload()
+    },
     close() {
       server.close()
       service.close()
