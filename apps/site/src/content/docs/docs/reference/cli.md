@@ -95,11 +95,11 @@ versions are immutable, and `remove` detaches the Pack layer without deleting th
 
 ```bash
 node pack.mjs inspect <directory> [--checksum sha256:...]
-node pack.mjs install <directory> --manifest <file> [--profile <id>] [--level <n>]
-node pack.mjs update <directory> --manifest <file> [--profile <id>]
-node pack.mjs update <directory> --manifest <file> --apply [--level <n>]
+node pack.mjs install <directory> --manifest <file> [--packs-dir <directory>] [--profile <id>] [--level <n>] [--checksum sha256:...]
+node pack.mjs update <directory> --manifest <file> [--packs-dir <directory>] [--profile <id>] [--checksum sha256:...]
+node pack.mjs update <directory> --manifest <file> --apply [--packs-dir <directory>] [--profile <id>] [--level <n>] [--checksum sha256:...]
 node pack.mjs list --manifest <file>
-node pack.mjs rollback <id> --manifest <file> [--profile <id>] [--version <semver>]
+node pack.mjs rollback <id> --manifest <file> [--packs-dir <directory>] [--profile <id>] [--version <semver>]
 node pack.mjs remove <id> --manifest <file> [--profile <id>]
 ```
 
