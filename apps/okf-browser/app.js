@@ -181,7 +181,15 @@
 
     const body = bundle.bodies[conceptId] || "";
     const bodyEl = document.getElementById("detail-body");
-    bodyEl.innerHTML = marked.parse(body, { breaks: false, gfm: true });
+    // Concept bodies can originate from lower-trust sources (team layers, auto-captured
+    // PR/issue signals, translated foreign MCP graphs), so sanitize the rendered HTML to
+    // strip scripts/event handlers/js: URLs. Mirrors the DOMPurify pass in apps/playground/app.js.
+    const renderedBody = marked.parse(body, { breaks: false, gfm: true });
+    if (window.DOMPurify) {
+      bodyEl.innerHTML = DOMPurify.sanitize(renderedBody);
+    } else {
+      bodyEl.textContent = body;
+    }
     rewriteInternalLinks(bodyEl);
 
     const refs = backlinks[conceptId] || [];
