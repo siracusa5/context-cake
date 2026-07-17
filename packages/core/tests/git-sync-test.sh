@@ -36,8 +36,8 @@ node_run "
 import { commitPaths } from '$core/sources/git-core.mjs';
 await commitPaths('$alice', ['captures/investigation/a.md'], 'feat: a');
 "
-( cd "$alice" && git show --stat --name-only HEAD | grep -q 'captures/investigation/a.md' ) || fail "commitPaths should commit the named path"
-( cd "$alice" && git status --porcelain | grep -q 'stray.txt' ) || fail "commitPaths must not sweep up unrelated files"
+( cd "$alice" && git show --stat --name-only HEAD | grep 'captures/investigation/a.md' > /dev/null ) || fail "commitPaths should commit the named path"
+( cd "$alice" && git status --porcelain | grep 'stray.txt' > /dev/null ) || fail "commitPaths must not sweep up unrelated files"
 
 # ---- git-core: push sets upstream when missing -------------------------------
 ( cd "$alice" && git checkout --quiet -b feature-x )
@@ -59,7 +59,7 @@ await commitPaths('$alice', ['captures/investigation/c.md'], 'feat: c');
 console.log(JSON.stringify(await push('$alice')));
 ")"
 grep -q '"queued":true' <<<"$out" || fail "offline push should report queued" "$out"
-( cd "$alice" && git log -1 --format=%s | grep -q 'feat: c' ) || fail "queued commit must remain local"
+( cd "$alice" && git log -1 --format=%s | grep 'feat: c' > /dev/null ) || fail "queued commit must remain local"
 mv "$bare.away" "$bare"
 out="$(node_run "
 import { retryQueued } from '$core/sources/git-core.mjs';
@@ -115,7 +115,7 @@ await commitPaths('$noident', ['f.md'], 'feat: ident', { author: 'Dana Q' });
 console.log('OK');
 ")"
 grep -q 'OK' <<<"$out" || fail "identity-less repo should commit with fallback identity" "$out"
-( cd "$noident" && git log -1 --format='%an' | grep -q 'Dana Q' ) || fail "fallback author name should be used"
+( cd "$noident" && git log -1 --format='%an' | grep 'Dana Q' > /dev/null ) || fail "fallback author name should be used"
 
 # ---- withGitSync: propagation through a warm cache ----------------------------
 mkdir -p "$bob/captures/investigation"
