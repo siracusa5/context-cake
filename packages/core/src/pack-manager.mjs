@@ -13,9 +13,20 @@ const ALLOWED_EXTENSIONS = new Set([".md", ".yaml", ".yml", ".json", ".txt"]);
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_PACK_BYTES = 25 * 1024 * 1024;
 const MAX_PACK_ENTRIES = 2_000;
-const PACK_CONTRACT = "1";
+export const PACK_CONTRACT = "1";
 const MANIFEST_FILE = "PACK.yaml";
 const FORBIDDEN_KEYS = new Set(["__proto__", "prototype", "constructor"]);
+
+// Single source of truth for the reviewed commerce contract. PACK.schema.json
+// mirrors these values; tests/pack-test.sh cross-checks the two so they cannot
+// silently drift apart.
+export const PAID_PRICE_BANDS = [
+  { personal: 19, team: 49 },
+  { personal: 49, team: 129 },
+  { personal: 99, team: 249 },
+  { personal: 149, team: 399 },
+];
+export const PAID_TEAM_SEATS = 5;
 
 const REQUIRED_SCALARS = [
   ["id"], ["name"], ["version"],
@@ -162,122 +173,128 @@ export function installPack({
   const pack = inspectPack(sourceRoot, { expectedChecksum });
   const resolvedManifestPath = path.resolve(manifestPath);
   const resolvedPacksDir = path.resolve(packsDir);
-  const manifest = readContextManifest(resolvedManifestPath);
-  const layers = selectProfileLayers(manifest, profile);
-  const registry = ensurePackRegistry(manifest);
-  const record = registry[pack.id] ? readPackRecord(manifest, pack.id) : {
-    id: pack.id,
-    name: pack.name,
-    creator: pack.creator.name,
-    license: pack.license.model,
-    installedVersions: [],
-    assignments: [],
-  };
-  registry[pack.id] = record;
-
-  const profileKey = profile ?? null;
-  const existingAssignment = record.assignments.find((entry) => entry.profile === profileKey);
-  const priorVersion = existingAssignment?.activeVersion ?? null;
-  const numericLevel = level === null || level === undefined ? Number(existingAssignment?.level ?? 0) : Number(level);
-  if (!Number.isInteger(numericLevel) || numericLevel < -100 || numericLevel > 100) {
-    throw new Error("Pack precedence level must be an integer between -100 and 100.");
-  }
-  if (priorVersion && priorVersion !== pack.version && !allowUpdate) {
-    throw new Error(`Pack ${pack.id}@${priorVersion} is already active. Run pack update to review ${pack.version} before applying it.`);
-  }
-  const updatePreview = priorVersion && priorVersion !== pack.version
-    ? previewPackUpdate({ sourceRoot, manifestPath: resolvedManifestPath, packsDir: resolvedPacksDir, profile, expectedChecksum })
-    : null;
-
-  const existingVersion = record.installedVersions.find((entry) => entry.version === pack.version);
-  if (existingVersion && existingVersion.checksum !== pack.checksum) {
-    throw new Error(`Installed Pack ${pack.id}@${pack.version} has a different checksum.`);
-  }
-  const versionRoot = safeChildPath(resolvedPacksDir, pack.id, pack.version);
-  const installed = installImmutableVersion(sourceRoot, versionRoot, pack.checksum);
-  if (!existingVersion) {
-    record.installedVersions.push({
-      version: pack.version,
-      checksum: pack.checksum,
-      installedAt: new Date().toISOString(),
-    });
-  }
-
-  let assignment = record.assignments.find((entry) => entry.profile === profileKey);
-  if (!assignment) {
-    assignment = {
-      profile: profileKey,
-      layerName: availableLayerName(layers, `pack-${pack.id}`),
-      activeVersion: pack.version,
-      level: numericLevel,
+  return withManifestLock(resolvedManifestPath, () => {
+    const manifest = readContextManifest(resolvedManifestPath);
+    const layers = selectProfileLayers(manifest, profile);
+    const registry = ensurePackRegistry(manifest);
+    const record = registry[pack.id] ? readPackRecord(manifest, pack.id) : {
+      id: pack.id,
+      name: pack.name,
+      creator: pack.creator.name,
+      license: pack.license.model,
+      installedVersions: [],
+      assignments: [],
     };
-    record.assignments.push(assignment);
-  } else {
-    assignment.activeVersion = pack.version;
-    assignment.level = numericLevel;
-  }
+    registry[pack.id] = record;
 
-  upsertPackLayer(layers, assignment, pack.id, versionRoot, resolvedManifestPath);
-  writeContextManifest(resolvedManifestPath, manifest);
+    const profileKey = profile ?? null;
+    const existingAssignment = record.assignments.find((entry) => entry.profile === profileKey);
+    const priorVersion = existingAssignment?.activeVersion ?? null;
+    const numericLevel = level === null || level === undefined ? Number(existingAssignment?.level ?? 0) : Number(level);
+    if (!Number.isInteger(numericLevel) || numericLevel < -100 || numericLevel > 100) {
+      throw new Error("Pack precedence level must be an integer between -100 and 100.");
+    }
+    if (priorVersion && priorVersion !== pack.version && !allowUpdate) {
+      throw new Error(`Pack ${pack.id}@${priorVersion} is already active. Run pack update to review ${pack.version} before applying it.`);
+    }
+    const updatePreview = priorVersion && priorVersion !== pack.version
+      ? previewPackUpdate({ sourceRoot, manifestPath: resolvedManifestPath, packsDir: resolvedPacksDir, profile, expectedChecksum })
+      : null;
 
-  return {
-    action: priorVersion && priorVersion !== pack.version ? "updated" : installed ? "installed" : "attached",
-    pack,
-    profile: profileKey,
-    level: numericLevel,
-    installedPath: versionRoot,
-    priorVersion,
-    ...(updatePreview ? { changes: updatePreview.changes } : {}),
-  };
+    const existingVersion = record.installedVersions.find((entry) => entry.version === pack.version);
+    if (existingVersion && existingVersion.checksum !== pack.checksum) {
+      throw new Error(`Installed Pack ${pack.id}@${pack.version} has a different checksum.`);
+    }
+    const versionRoot = safeChildPath(resolvedPacksDir, pack.id, pack.version);
+    const installed = installImmutableVersion(sourceRoot, versionRoot, pack.checksum);
+    if (!existingVersion) {
+      record.installedVersions.push({
+        version: pack.version,
+        checksum: pack.checksum,
+        installedAt: new Date().toISOString(),
+      });
+    }
+
+    let assignment = record.assignments.find((entry) => entry.profile === profileKey);
+    if (!assignment) {
+      assignment = {
+        profile: profileKey,
+        layerName: availableLayerName(layers, `pack-${pack.id}`),
+        activeVersion: pack.version,
+        level: numericLevel,
+      };
+      record.assignments.push(assignment);
+    } else {
+      assignment.activeVersion = pack.version;
+      assignment.level = numericLevel;
+    }
+
+    upsertPackLayer(layers, assignment, pack.id, versionRoot, resolvedManifestPath);
+    writeContextManifest(resolvedManifestPath, manifest);
+
+    return {
+      action: priorVersion && priorVersion !== pack.version ? "updated" : installed ? "installed" : "attached",
+      pack,
+      profile: profileKey,
+      level: numericLevel,
+      installedPath: versionRoot,
+      priorVersion,
+      ...(updatePreview ? { changes: updatePreview.changes } : {}),
+    };
+  });
 }
 
 /** Point an assignment at a retained version; no files are overwritten. */
 export function rollbackPack({ manifestPath, packId, profile = null, version = null, packsDir }) {
   const resolvedManifestPath = path.resolve(manifestPath);
   const resolvedPacksDir = path.resolve(packsDir ?? path.join(path.dirname(resolvedManifestPath), "packs"));
-  const manifest = readContextManifest(resolvedManifestPath);
-  const record = readPackRecord(manifest, packId);
-  if (!record) throw new Error(`Pack is not installed: ${packId}`);
-  const assignment = record.assignments?.find((entry) => entry.profile === (profile ?? null));
-  if (!assignment) throw new Error(`Pack ${packId} is not attached to ${profile ? `profile ${profile}` : "the default stack"}.`);
+  return withManifestLock(resolvedManifestPath, () => {
+    const manifest = readContextManifest(resolvedManifestPath);
+    const record = readPackRecord(manifest, packId);
+    if (!record) throw new Error(`Pack is not installed: ${packId}`);
+    const assignment = record.assignments?.find((entry) => entry.profile === (profile ?? null));
+    if (!assignment) throw new Error(`Pack ${packId} is not attached to ${profile ? `profile ${profile}` : "the default stack"}.`);
 
-  const candidates = record.installedVersions.filter((entry) => entry.version !== assignment.activeVersion);
-  const selected = version
-    ? record.installedVersions.find((entry) => entry.version === version)
-    : candidates.at(-1);
-  if (!selected) throw new Error(version ? `Pack version is not installed: ${packId}@${version}` : `No previous version is retained for ${packId}.`);
+    const candidates = record.installedVersions.filter((entry) => entry.version !== assignment.activeVersion);
+    const selected = version
+      ? record.installedVersions.find((entry) => entry.version === version)
+      : candidates.at(-1);
+    if (!selected) throw new Error(version ? `Pack version is not installed: ${packId}@${version}` : `No previous version is retained for ${packId}.`);
 
-  const versionRoot = safeChildPath(resolvedPacksDir, packId, selected.version);
-  const inspected = inspectPack(versionRoot, { expectedChecksum: selected.checksum });
-  const layers = selectProfileLayers(manifest, profile);
-  const priorVersion = assignment.activeVersion;
-  assignment.activeVersion = selected.version;
-  upsertPackLayer(layers, assignment, packId, versionRoot, resolvedManifestPath);
-  writeContextManifest(resolvedManifestPath, manifest);
-  return { action: "rolled-back", pack: inspected, profile: profile ?? null, priorVersion };
+    const versionRoot = safeChildPath(resolvedPacksDir, packId, selected.version);
+    const inspected = inspectPack(versionRoot, { expectedChecksum: selected.checksum });
+    const layers = selectProfileLayers(manifest, profile);
+    const priorVersion = assignment.activeVersion;
+    assignment.activeVersion = selected.version;
+    upsertPackLayer(layers, assignment, packId, versionRoot, resolvedManifestPath);
+    writeContextManifest(resolvedManifestPath, manifest);
+    return { action: "rolled-back", pack: inspected, profile: profile ?? null, priorVersion };
+  });
 }
 
 /** Detach a Pack layer but deliberately retain every downloaded version. */
 export function removePack({ manifestPath, packId, profile = null }) {
   const resolvedManifestPath = path.resolve(manifestPath);
-  const manifest = readContextManifest(resolvedManifestPath);
-  const record = readPackRecord(manifest, packId);
-  if (!record) throw new Error(`Pack is not installed: ${packId}`);
-  const profileKey = profile ?? null;
-  const assignmentIndex = record.assignments?.findIndex((entry) => entry.profile === profileKey) ?? -1;
-  if (assignmentIndex < 0) throw new Error(`Pack ${packId} is not attached to ${profile ? `profile ${profile}` : "the default stack"}.`);
+  return withManifestLock(resolvedManifestPath, () => {
+    const manifest = readContextManifest(resolvedManifestPath);
+    const record = readPackRecord(manifest, packId);
+    if (!record) throw new Error(`Pack is not installed: ${packId}`);
+    const profileKey = profile ?? null;
+    const assignmentIndex = record.assignments?.findIndex((entry) => entry.profile === profileKey) ?? -1;
+    if (assignmentIndex < 0) throw new Error(`Pack ${packId} is not attached to ${profile ? `profile ${profile}` : "the default stack"}.`);
 
-  const [assignment] = record.assignments.splice(assignmentIndex, 1);
-  const layers = selectProfileLayers(manifest, profile);
-  const layerIndex = layers.findIndex((layer) => layer.name === assignment.layerName && isPackOrigin(layer.origin, packId));
-  if (layerIndex >= 0) layers.splice(layerIndex, 1);
-  writeContextManifest(resolvedManifestPath, manifest);
-  return {
-    action: "detached",
-    id: packId,
-    profile: profileKey,
-    retainedVersions: record.installedVersions.map((entry) => entry.version),
-  };
+    const [assignment] = record.assignments.splice(assignmentIndex, 1);
+    const layers = selectProfileLayers(manifest, profile);
+    const layerIndex = layers.findIndex((layer) => layer.name === assignment.layerName && isPackOrigin(layer.origin, packId));
+    if (layerIndex >= 0) layers.splice(layerIndex, 1);
+    writeContextManifest(resolvedManifestPath, manifest);
+    return {
+      action: "detached",
+      id: packId,
+      profile: profileKey,
+      retainedVersions: record.installedVersions.map((entry) => entry.version),
+    };
+  });
 }
 
 export function listPacks(manifestPath) {
@@ -315,9 +332,12 @@ function validateTrustContract(content) {
   const licenseModel = readYamlPath(content, ["license", "model"]);
   if (!new Set(["free", "personal-and-team"]).has(licenseModel)) errors.push("PACK.yaml license.model must be free or personal-and-team.");
   if (licenseModel === "personal-and-team") {
-    const pair = `${readYamlPath(content, ["license", "personal_price_usd"])}/${readYamlPath(content, ["license", "team_price_usd"])}`;
-    if (!new Set(["19/49", "49/129", "99/249", "149/399"]).has(pair)) errors.push("PACK.yaml paid license prices must use a reviewed personal/team price band.");
-    if (readYamlPath(content, ["license", "team_seats"]) !== 5) errors.push("PACK.yaml paid team license must cover exactly 5 users.");
+    const personalPrice = readYamlPath(content, ["license", "personal_price_usd"]);
+    const teamPrice = readYamlPath(content, ["license", "team_price_usd"]);
+    if (!PAID_PRICE_BANDS.some((band) => band.personal === personalPrice && band.team === teamPrice)) {
+      errors.push("PACK.yaml paid license prices must use a reviewed personal/team price band.");
+    }
+    if (readYamlPath(content, ["license", "team_seats"]) !== PAID_TEAM_SEATS) errors.push(`PACK.yaml paid team license must cover exactly ${PAID_TEAM_SEATS} users.`);
   }
   if (readYamlPath(content, ["update_policy", "base_purchase"]) !== "perpetual") errors.push("PACK.yaml update_policy.base_purchase must be perpetual.");
   if (readYamlPath(content, ["update_policy", "corrections"]) !== "included") errors.push("PACK.yaml update_policy.corrections must be included.");
@@ -369,7 +389,7 @@ function walkPackEntries(root, errors) {
     }
   }
   if (totalBytes > MAX_PACK_BYTES) errors.push("Pack exceeds the 25 MB unpacked size limit.");
-  return entries.sort((a, b) => a.relative.localeCompare(b.relative));
+  return entries.sort((a, b) => (a.relative < b.relative ? -1 : a.relative > b.relative ? 1 : 0));
 }
 
 function checksumEntries(root, entries) {
@@ -397,6 +417,7 @@ function installImmutableVersion(sourceRoot, targetRoot, checksum) {
     if (existing.checksum !== checksum) throw new Error(`Installed Pack directory differs from ${checksum}.`);
     return false;
   }
+  sweepStaleStaging(path.dirname(targetRoot), path.basename(targetRoot));
   const staging = `${targetRoot}.install-${process.pid}-${crypto.randomBytes(6).toString("hex")}`;
   try {
     fs.mkdirSync(staging, { mode: 0o755 });
@@ -429,6 +450,22 @@ function copyPackTree(source, destination) {
   }
 }
 
+// A crash mid-install can leave a `<version>.install-<pid>-<hex>` staging dir
+// behind. Sweep siblings older than the stale window before staging a new one;
+// the age guard keeps a concurrent install's fresh staging dir untouched.
+function sweepStaleStaging(idDir, versionName) {
+  const prefix = `${versionName}.install-`;
+  let names;
+  try { names = fs.readdirSync(idDir); } catch { return; }
+  for (const name of names) {
+    if (!name.startsWith(prefix)) continue;
+    const full = path.join(idDir, name);
+    try {
+      if (Date.now() - fs.lstatSync(full).mtimeMs >= MANIFEST_LOCK_STALE_MS) fs.rmSync(full, { recursive: true, force: true });
+    } catch { /* another install may have cleaned it up; ignore */ }
+  }
+}
+
 function readContextManifest(manifestPath) {
   if (!fs.existsSync(manifestPath)) return { layers: [] };
   const parsed = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
@@ -449,6 +486,52 @@ function writeContextManifest(manifestPath, manifest) {
     fs.rmSync(temporary, { force: true });
     throw error;
   }
+}
+
+const MANIFEST_LOCK_TIMEOUT_MS = 15_000;
+const MANIFEST_LOCK_STALE_MS = 60_000;
+
+// Serialize the manifest read-modify-write so two concurrent `pack` commands
+// cannot clobber each other's registry edits (writeContextManifest already
+// guards against torn writes; this guards against lost updates). Advisory
+// lockfile next to the manifest, with stale-lock takeover after a crash.
+function withManifestLock(manifestPath, mutate) {
+  const lockPath = `${manifestPath}.lock`;
+  fs.mkdirSync(path.dirname(manifestPath), { recursive: true, mode: 0o700 });
+  const deadline = Date.now() + MANIFEST_LOCK_TIMEOUT_MS;
+  let fd = null;
+  while (fd === null) {
+    try {
+      fd = fs.openSync(lockPath, "wx", 0o600);
+    } catch (error) {
+      if (error.code !== "EEXIST") throw error;
+      if (reapStaleLock(lockPath)) continue;
+      if (Date.now() >= deadline) throw new Error(`Timed out acquiring the Pack manifest lock at ${lockPath}.`);
+      sleepSync(50);
+    }
+  }
+  try {
+    fs.writeSync(fd, `${process.pid}\n`);
+    return mutate();
+  } finally {
+    fs.closeSync(fd);
+    fs.rmSync(lockPath, { force: true });
+  }
+}
+
+function reapStaleLock(lockPath) {
+  try {
+    const stat = fs.lstatSync(lockPath);
+    if (Date.now() - stat.mtimeMs < MANIFEST_LOCK_STALE_MS) return false;
+    fs.rmSync(lockPath, { force: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function sleepSync(milliseconds) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
 }
 
 function selectProfileLayers(manifest, profile) {

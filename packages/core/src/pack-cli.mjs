@@ -75,12 +75,15 @@ function parseArgs(values) {
     }
     const key = value.slice(2);
     const next = values[index + 1];
-    if (key === "apply" && (!next || next.startsWith("--"))) {
-      parsed[key] = true;
+    if (key === "apply") {
+      // Boolean flag: consume only an explicit true/false, otherwise stand alone
+      // so a following positional (the Pack directory) is never swallowed.
+      if (next === "true" || next === "false") { parsed[key] = next === "true"; index += 1; }
+      else parsed[key] = true;
       continue;
     }
     if (!next || next.startsWith("--")) throw new Error(`Option --${key} requires a value.`);
-    parsed[key] = key === "apply" ? next !== "false" : next;
+    parsed[key] = next;
     index += 1;
   }
   return parsed;

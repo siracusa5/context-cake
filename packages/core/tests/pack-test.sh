@@ -119,4 +119,63 @@ if node "$pack_cli" install "$source_pack" --manifest "$tmpdir/manifest.json" --
   fail "symlinked Pack store was accepted"
 fi
 
-echo "pack test passed (trust validation + immutable install + profile assignment + reviewed update + rollback + retained removal)"
+# The content checksum must be a portable code-unit content hash, not locale
+# collation. README-extra.md vs data-extra.md sort in opposite order under
+# localeCompare, so a locale-sorted engine would diverge from this reference.
+cp -R "$source_pack" "$tmpdir/order-pack"
+printf 'extra one\n' > "$tmpdir/order-pack/README-extra.md"
+printf 'extra two\n' > "$tmpdir/order-pack/data-extra.md"
+node "$pack_cli" inspect "$tmpdir/order-pack" > "$tmpdir/order-inspect.json"
+node - "$tmpdir/order-pack" "$tmpdir/order-inspect.json" <<'NODE' || fail "checksum is not a deterministic code-unit content hash"
+const crypto = require('node:crypto')
+const fs = require('node:fs')
+const path = require('node:path')
+const root = process.argv[2]
+const engineChecksum = JSON.parse(fs.readFileSync(process.argv[3], 'utf8')).checksum
+function walk(dir, base, acc) {
+  for (const name of fs.readdirSync(dir)) {
+    const full = path.join(dir, name)
+    const stat = fs.lstatSync(full)
+    if (stat.isDirectory()) walk(full, base, acc)
+    else if (stat.isFile()) acc.push(path.relative(base, full).split(path.sep).join('/'))
+  }
+  return acc
+}
+const files = walk(root, root, []).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+const hash = crypto.createHash('sha256')
+for (const rel of files) {
+  hash.update(rel)
+  hash.update('\0')
+  let content = fs.readFileSync(path.join(root, rel))
+  if (rel === 'PACK.yaml') content = Buffer.from(content.toString('utf8').replace(/(^\s*checksum:\s*).+$/m, '$1"pending-release"'))
+  hash.update(content)
+  hash.update('\0')
+}
+const reference = `sha256:${hash.digest('hex')}`
+if (reference !== engineChecksum) {
+  console.error(`code-unit reference ${reference} != engine ${engineChecksum}`)
+  process.exit(1)
+}
+NODE
+
+# PACK.schema.json and the hand-rolled validator must agree on the commerce
+# contract (paid price bands, team seats, pack contract version).
+node - "$repo_root" <<'NODE' || fail "PACK.schema.json drifted from the engine commerce contract"
+const fs = require('node:fs')
+const path = require('node:path')
+const root = process.argv[2]
+;(async () => {
+  const engine = await import(path.join(root, 'packages/core/src/pack-manager.mjs'))
+  const schema = JSON.parse(fs.readFileSync(path.join(root, 'specs/contextcake-packs/PACK.schema.json'), 'utf8'))
+  const paid = schema.allOf[0].then.properties.license
+  const bands = paid.oneOf.map((entry) => ({
+    personal: entry.properties.personal_price_usd.const,
+    team: entry.properties.team_price_usd.const,
+  }))
+  if (JSON.stringify(bands) !== JSON.stringify(engine.PAID_PRICE_BANDS)) process.exit(1)
+  if (paid.properties.team_seats.const !== engine.PAID_TEAM_SEATS) process.exit(1)
+  if (schema.properties.compatibility.properties.pack_contract.const !== engine.PACK_CONTRACT) process.exit(1)
+})().catch((error) => { console.error(error); process.exit(1) })
+NODE
+
+echo "pack test passed (trust validation + immutable install + profile assignment + reviewed update + rollback + retained removal + deterministic checksum + schema/contract parity)"
