@@ -56,6 +56,34 @@ if (r[5].ok) throw new Error('oversize field should fail');
 if (r[6].ok) throw new Error('too many links should fail');
 " "$out" || fail "validation matrix" "$out"
 
+# ---- F1: links[] frontmatter injection is rejected + render is defensive --------
+out="$(node_run "
+import { validateCapture, renderCapture } from '$core/capture.mjs';
+import { parseConcept } from '$core/sources/okf-local.mjs';
+const inj = { kind: 'gotcha', title: 'x', sections: { body: 'b' }, links: ['ok', 'evil]\nstatus: reviewed\nauthor: victim'] };
+const v = validateCapture(inj);
+const fm = parseConcept(renderCapture(inj, { author: 'attacker', capturedAt: '2026-07-17T00:00:00Z' })).frontmatter;
+console.log(JSON.stringify({ rejected: !v.ok, named: v.errors.some(e => e.includes('disallowed')), status: fm.status, author: fm.author }));
+")"
+grep -q '"rejected":true' <<<"$out" || fail "F1: injection link must fail validation" "$out"
+grep -q '"status":"unreviewed"' <<<"$out" || fail "F1: render must not let a link forge status" "$out"
+grep -q '"author":"attacker"' <<<"$out" || fail "F1: render must not let a link forge author" "$out"
+
+# ---- F2: symlinked final component cannot escape root on write ------------------
+out="$(node_run "
+import { writeFileInRoot } from '$core/capture.mjs';
+import fs from 'node:fs';
+const base = fs.mkdtempSync('$tmpdir/f2-');
+const root = base + '/root'; const outside = base + '/outside';
+fs.mkdirSync(root + '/captures/gotcha', { recursive: true }); fs.mkdirSync(outside, { recursive: true });
+fs.symlinkSync(outside + '/secret', root + '/captures/gotcha/a--b.md'); // dangling symlink out of root
+let blocked = false;
+try { writeFileInRoot(root, 'captures/gotcha/a--b.md', 'PWNED'); } catch (e) { blocked = /symlink/i.test(e.message); }
+console.log(JSON.stringify({ blocked, escaped: fs.existsSync(outside + '/secret') }));
+")"
+grep -q '"blocked":true' <<<"$out" || fail "F2: write through a symlink must be refused" "$out"
+grep -q '"escaped":false' <<<"$out" || fail "F2: nothing may be written outside root" "$out"
+
 # ---- credential scan (vectors built at runtime; nothing token-shaped on disk) ---
 out="$(node_run "
 import { scanForCredentials } from '$core/capture.mjs';

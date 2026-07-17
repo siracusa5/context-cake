@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { parseConcept } from "./sources/okf-local.mjs";
 import { commitPaths, push } from "./sources/git-core.mjs";
-import { resolveAuthor, assertInsideRoot } from "./capture.mjs";
+import { resolveAuthor, writeFileInRoot } from "./capture.mjs";
 import { slugify } from "./classify-context.mjs";
 
 const args = parseArgs(process.argv.slice(2));
@@ -102,10 +102,8 @@ function requestPromotion(liveRoot, curatedRoot, captureId, parsed) {
   }
 
   const reviewRel = `_review/promotions/${slugify(path.posix.basename(dest))}.md`;
-  const reviewPath = safeJoin(curatedRoot, reviewRel);
-  assertInsideRoot(curatedRoot, reviewRel);
   const staged = raw.replace(/^---\n/, `---\npromoteTo: ${dest}\npromotedFrom: ${captureId}\n`);
-  fs.writeFileSync(reviewPath, staged, "utf8");
+  writeFileInRoot(curatedRoot, reviewRel, staged);
   console.log(`Staged promotion request: ${reviewRel} -> ${dest}`);
 }
 
@@ -118,13 +116,12 @@ async function approvePromotion(liveRoot, curatedRoot, reviewPath, parsed) {
 
   const destRel = `${dest}.md`;
   const destPath = safeJoin(curatedRoot, destRel);
-  assertInsideRoot(curatedRoot, destRel);
 
   // Idempotent re-approve: a valid existing curated concept means the write
   // already happened — do cleanup only, never duplicate.
   const alreadyDurable = fs.existsSync(destPath) && isDurable(destPath);
   if (!alreadyDurable) {
-    fs.writeFileSync(destPath, renderCurated(frontmatter, sections, dest), "utf8");
+    writeFileInRoot(curatedRoot, destRel, renderCurated(frontmatter, sections, dest));
     if (!isDurable(destPath)) throw new Error(`Curated write failed verification: ${destRel}`);
   }
 
