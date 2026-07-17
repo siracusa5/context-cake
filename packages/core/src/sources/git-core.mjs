@@ -7,14 +7,17 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
 const LOCK_NAME = ".contextcake.lock"; // dotfile: invisible to walkMarkdown
-const LOCK_STALE_MS = 120000; // must exceed a slow git op so a mid-push lock is not stolen
 const GIT_TIMEOUT_MS = 90000; // bound a hung git op (must stay < LOCK_STALE_MS)
+// A locked mutation can make several bounded git calls (push → pull/rebase →
+// retry), so the stale window must cover the whole workflow, not one call.
+const LOCK_STALE_MS = GIT_TIMEOUT_MS * 6;
 
 // Never let git block on an interactive credential/askpass prompt (would hang
 // the MCP server); fail fast instead. Timeout bounds a wedged network op.
@@ -67,13 +70,14 @@ function lockIsStale(lock) {
 }
 
 function tryAcquire(root, op) {
-  const payload = JSON.stringify({ pid: process.pid, ts: Date.now(), op });
+  const token = crypto.randomUUID();
+  const payload = JSON.stringify({ pid: process.pid, ts: Date.now(), op, token });
   try {
     fs.writeFileSync(lockPath(root), payload, { flag: "wx" });
-    return true;
+    return token;
   } catch {
     const existing = readLock(root);
-    if (!lockIsStale(existing)) return false;
+    if (!lockIsStale(existing)) return null;
     // Atomic steal: renaming the stale lock away is the compare-and-swap —
     // only one racer can rename a given inode (the rest get ENOENT), so two
     // processes can't both steal and double-acquire (the old rm+write could).
@@ -81,20 +85,24 @@ function tryAcquire(root, op) {
     try {
       fs.renameSync(lockPath(root), parked);
     } catch {
-      return false; // lost the steal race, or the lock changed under us
+      return null; // lost the steal race, or the lock changed under us
     }
     fs.rmSync(parked, { force: true });
     try {
       fs.writeFileSync(lockPath(root), payload, { flag: "wx" });
-      return true;
+      return token;
     } catch {
-      return false; // a fresh holder grabbed the freed lock; yield
+      return null; // a fresh holder grabbed the freed lock; yield
     }
   }
 }
 
-function release(root) {
+function release(root, token) {
   try {
+    // A stale holder may finish after another process has replaced its lock.
+    // Never delete the replacement: only the process that owns this token may
+    // release it.
+    if (readLock(root)?.token !== token) return;
     fs.rmSync(lockPath(root), { force: true });
   } catch {
     // releasing a lock must never throw past the operation it protected
@@ -106,7 +114,8 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // Writers retry then throw LockBusy; readers pass skipOnBusy to serve stale.
 export async function withRepoLock(root, op, fn, { skipOnBusy = false, lockRetryMs = 2000, lockRetries = 3 } = {}) {
   let attempts = 0;
-  while (!tryAcquire(root, op)) {
+  let token = tryAcquire(root, op);
+  while (!token) {
     if (skipOnBusy) return { skipped: true };
     attempts += 1;
     if (attempts >= lockRetries) {
@@ -115,11 +124,12 @@ export async function withRepoLock(root, op, fn, { skipOnBusy = false, lockRetry
       throw error;
     }
     await sleep(lockRetryMs);
+    token = tryAcquire(root, op);
   }
   try {
     return await fn();
   } finally {
-    release(root);
+    release(root, token);
   }
 }
 

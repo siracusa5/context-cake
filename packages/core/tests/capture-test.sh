@@ -69,20 +69,25 @@ grep -q '"rejected":true' <<<"$out" || fail "F1: injection link must fail valida
 grep -q '"status":"unreviewed"' <<<"$out" || fail "F1: render must not let a link forge status" "$out"
 grep -q '"author":"attacker"' <<<"$out" || fail "F1: render must not let a link forge author" "$out"
 
-# ---- F2: symlinked final component cannot escape root on write ------------------
+# ---- F2: symlinked final component cannot escape root on write or append ---------
 out="$(node_run "
-import { writeFileInRoot } from '$core/capture.mjs';
+import { appendFileInRoot, writeFileInRoot } from '$core/capture.mjs';
 import fs from 'node:fs';
 const base = fs.mkdtempSync('$tmpdir/f2-');
 const root = base + '/root'; const outside = base + '/outside';
 fs.mkdirSync(root + '/captures/gotcha', { recursive: true }); fs.mkdirSync(outside, { recursive: true });
 fs.symlinkSync(outside + '/secret', root + '/captures/gotcha/a--b.md'); // dangling symlink out of root
-let blocked = false;
-try { writeFileInRoot(root, 'captures/gotcha/a--b.md', 'PWNED'); } catch (e) { blocked = /symlink/i.test(e.message); }
-console.log(JSON.stringify({ blocked, escaped: fs.existsSync(outside + '/secret') }));
+fs.mkdirSync(root + '/telemetry/alice', { recursive: true });
+fs.symlinkSync(outside + '/telemetry', root + '/telemetry/alice/2026-07.ndjson');
+let writeBlocked = false; let appendBlocked = false;
+try { writeFileInRoot(root, 'captures/gotcha/a--b.md', 'PWNED'); } catch (e) { writeBlocked = /symlink/i.test(e.message); }
+try { appendFileInRoot(root, 'telemetry/alice/2026-07.ndjson', 'PWNED'); } catch (e) { appendBlocked = /symlink/i.test(e.message); }
+console.log(JSON.stringify({ writeBlocked, appendBlocked, writeEscaped: fs.existsSync(outside + '/secret'), appendEscaped: fs.existsSync(outside + '/telemetry') }));
 ")"
-grep -q '"blocked":true' <<<"$out" || fail "F2: write through a symlink must be refused" "$out"
-grep -q '"escaped":false' <<<"$out" || fail "F2: nothing may be written outside root" "$out"
+grep -q '"writeBlocked":true' <<<"$out" || fail "F2: write through a symlink must be refused" "$out"
+grep -q '"appendBlocked":true' <<<"$out" || fail "F2: append through a symlink must be refused" "$out"
+grep -q '"writeEscaped":false' <<<"$out" || fail "F2: write must not escape root" "$out"
+grep -q '"appendEscaped":false' <<<"$out" || fail "F2: append must not escape root" "$out"
 
 # ---- credential scan (vectors built at runtime; nothing token-shaped on disk) ---
 out="$(node_run "
@@ -242,7 +247,7 @@ set -e
 grep -q -- '--dest' "$tmpdir/err.txt" || fail "error should mention --dest" "$(cat "$tmpdir/err.txt")"
 
 # ---- promotion: approve = durable write, then cleanup ----------------------------------
-node "$promote" --from-live "$live" --target "$curated" --approve "$review_file" > /dev/null
+node "$promote" --from-live "$live" --target "$curated" --approve "$review_file" --telemetry > /dev/null
 [ -f "$curated/systems/timeout-the-webhook-mystery.md" ] || fail "approve should write the curated concept"
 grep -q 'status:' "$curated/systems/timeout-the-webhook-mystery.md" && fail "curated concept must not keep unreviewed status"
 grep -q 'promoted from' "$curated/systems/timeout-the-webhook-mystery.md" || fail "curated concept should carry provenance"
@@ -250,6 +255,16 @@ grep -q 'promoted from' "$curated/systems/timeout-the-webhook-mystery.md" || fai
 [ -f "$live/captures/investigation/alice-example--timeout-the-webhook-mystery.md" ] && fail "approve should remove the live capture"
 # plain grep (not -q): under pipefail, grep -q exiting early SIGPIPEs git log
 ( cd "$live" && git log --oneline | grep 'promote' > /dev/null ) || fail "live repo should show the promote commit"
+promote_telemetry="$(git -C "$live" show --format= --name-only HEAD | grep '^telemetry/' || true)"
+[ -n "$promote_telemetry" ] || fail "promote telemetry must be committed with live cleanup"
+node -e "
+const fs = require('fs');
+const file = process.argv[1];
+const events = fs.readFileSync('$live/' + file, 'utf8').trim().split('\\n').map(JSON.parse);
+if (!events.some(e => e.event === 'promote' && e.concept === 'captures/investigation/alice-example--timeout-the-webhook-mystery')) {
+  throw new Error('missing committed promote telemetry event');
+}
+" "$promote_telemetry" || fail "promote telemetry event"
 
 # ---- promotion: failure between curated write and cleanup is recoverable ----------------
 node "$promote" --from-live "$live" --capture captures/investigation/alice-example--timeout-the-webhook-mystery-2 --target "$curated" --dest systems/retry-durable > /dev/null

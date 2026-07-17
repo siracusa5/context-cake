@@ -98,11 +98,11 @@ the layer (e.g. `"git": { "pullTtlSeconds": 90, "retentionDays": 14 }` plus
 when the integrations profiles work lands.
 
 - **Pull:** TTL-gated (default 90s) `git pull --ff-only --quiet` before reads.
-  Multiple harness processes run engines over the same working tree
-  concurrently, so every git mutation is guarded by an advisory `.contextcake.lock`
-  (pid + timestamp, JSON, inside the repo root; stale after 120s, stolen
-  atomically via rename); on contention a reader skips the pull and serves the
-  current tree — staleness stays bounded by the TTL. All of this lives in
+Multiple harness processes run engines over the same working tree
+concurrently, so every git mutation is guarded by an advisory `.contextcake.lock`
+(pid + timestamp + owner token, JSON, inside the repo root; stale after 9
+minutes, stolen atomically via rename); on contention a reader skips the pull and serves the
+current tree — staleness stays bounded by the TTL. All of this lives in
   `git-core.mjs`, which `git-sync.mjs` (the `withGitSync` wrapper) and the
   capture/promote paths call — nothing runs git against a live root directly.
 - **Push:** `confirm_capture` commits and pushes. On failure: retry as

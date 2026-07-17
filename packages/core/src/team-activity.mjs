@@ -78,18 +78,20 @@ function readTelemetry(liveRoot) {
   const telemetryDir = path.join(liveRoot, "telemetry");
   const events = [];
   if (!fs.existsSync(telemetryDir)) return events;
-  for (const author of fs.readdirSync(telemetryDir)) {
-    const authorDir = path.join(telemetryDir, author);
-    if (!fs.statSync(authorDir).isDirectory()) continue;
-    for (const file of fs.readdirSync(authorDir)) {
-      if (!file.endsWith(".ndjson")) continue;
-      const lines = fs.readFileSync(path.join(authorDir, file), "utf8").split("\n");
+  for (const author of fs.readdirSync(telemetryDir, { withFileTypes: true })) {
+    // The live repo is team-controlled input. Do not follow a committed
+    // telemetry/<author> symlink into arbitrary local directories.
+    if (!author.isDirectory()) continue;
+    const authorDir = path.join(telemetryDir, author.name);
+    for (const file of fs.readdirSync(authorDir, { withFileTypes: true })) {
+      if (!file.isFile() || !file.name.endsWith(".ndjson")) continue;
+      const lines = fs.readFileSync(path.join(authorDir, file.name), "utf8").split("\n");
       for (const line of lines) {
         if (!line.trim()) continue;
         try {
           events.push(JSON.parse(line));
         } catch {
-          console.error(`team-activity: skipping malformed telemetry line in ${author}/${file}`);
+          console.error(`team-activity: skipping malformed telemetry line in ${author.name}/${file.name}`);
         }
       }
     }

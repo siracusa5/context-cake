@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { parseConcept } from "./sources/okf-local.mjs";
 import { commitPaths, push } from "./sources/git-core.mjs";
-import { resolveAuthor, writeFileInRoot } from "./capture.mjs";
+import { appendFileInRoot, resolveAuthor, writeFileInRoot } from "./capture.mjs";
 import { slugify } from "./classify-context.mjs";
 
 const args = parseArgs(process.argv.slice(2));
@@ -129,10 +129,16 @@ async function approvePromotion(liveRoot, curatedRoot, reviewPath, parsed) {
   fs.rmSync(reviewPath, { force: true });
   const livePath = safeJoin(liveRoot, `${captureId}.md`);
   if (fs.existsSync(livePath)) {
+    const telemetryPath = parsed.telemetry
+      ? await emitPromoteEvent(liveRoot, captureId, frontmatter, dest)
+      : null;
     fs.rmSync(livePath);
-    await commitPaths(liveRoot, [`${captureId}.md`], `chore: promote ${captureId} -> ${dest}`);
+    await commitPaths(
+      liveRoot,
+      [`${captureId}.md`, ...(telemetryPath ? [telemetryPath] : [])],
+      `chore: promote ${captureId} -> ${dest}`,
+    );
     const pushed = await push(liveRoot);
-    if (parsed.telemetry) await emitPromoteEvent(liveRoot, captureId, frontmatter, dest);
     if (pushed.queued) console.error("promote: live cleanup committed locally; push queued (run sync to retry)");
   }
   console.log(`Promoted ${captureId} -> ${dest}`);
@@ -179,16 +185,16 @@ function inferCuratedType(dest) {
 async function emitPromoteEvent(liveRoot, captureId, frontmatter, dest) {
   try {
     const user = await resolveAuthor({ root: liveRoot, profileName: null });
-    const dir = path.join(liveRoot, "telemetry", slugify(user));
-    fs.mkdirSync(dir, { recursive: true });
-    const month = new Date().toISOString().slice(0, 7);
+    const relativePath = path.join("telemetry", slugify(user), `${new Date().toISOString().slice(0, 7)}.ndjson`);
     const line = JSON.stringify({
       ts: new Date().toISOString(), user, harness: "cli", event: "promote",
       concept: captureId, layer: "live", captureKind: frontmatter.kind ?? null,
     });
-    fs.appendFileSync(path.join(dir, `${month}.ndjson`), `${line}\n`);
+    appendFileInRoot(liveRoot, relativePath, `${line}\n`);
+    return relativePath;
   } catch {
     // telemetry must never block a promotion
+    return null;
   }
 }
 

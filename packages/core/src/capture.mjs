@@ -231,6 +231,26 @@ export function writeFileInRoot(root, relFilePath, data) {
   return target;
 }
 
+// Telemetry is append-only, but it is still a write into a team-controlled
+// repository. Keep the same final-component symlink protection as captures.
+export function appendFileInRoot(root, relFilePath, data) {
+  const target = assertInsideRoot(root, relFilePath);
+  const flags = fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_APPEND | fs.constants.O_NOFOLLOW;
+  let fd;
+  try {
+    fd = fs.openSync(target, flags, 0o644);
+  } catch (error) {
+    if (error.code === "ELOOP") throw new Error(`Refusing to write through a symlink: ${relFilePath}`);
+    throw error;
+  }
+  try {
+    fs.writeFileSync(fd, data);
+  } finally {
+    fs.closeSync(fd);
+  }
+  return target;
+}
+
 // ---- two-phase staging ---------------------------------------------------------------
 
 const staged = new Map(); // token -> { capture, id, author, capturedAt, stagedAt }

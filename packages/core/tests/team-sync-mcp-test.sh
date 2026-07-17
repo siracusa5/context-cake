@@ -281,12 +281,16 @@ fs.writeFileSync('$live/telemetry/bob/$month.ndjson', [
   'this line is malformed {{{',
 ].join('\n') + '\n');
 "
+mkdir -p "$tmpdir/outside-telemetry"
+printf '%s\n' '{"ts":"2026-07-17T00:00:00Z","user":"outside","event":"read","concept":"captures/investigation/alice--x"}' > "$tmpdir/outside-telemetry/leak.ndjson"
+ln -s "$tmpdir/outside-telemetry" "$live/telemetry/not-a-team-member"
 out="$(node "$core/team-activity.mjs" --live-root "$live" --out "$tmpdir/activity.json" 2>&1)"
 node -e "
 const r = JSON.parse(require('fs').readFileSync('$tmpdir/activity.json', 'utf8'));
 if (r.metrics.crossBrainHits !== 1) throw new Error('crossBrainHits should be 1: ' + JSON.stringify(r.metrics));
 if (r.metrics.medianTimeToFirstReuseHours !== 2) throw new Error('median reuse should be 2h: ' + JSON.stringify(r.metrics));
 if (r.metrics.reviewThroughput.promoted !== 1) throw new Error('promoted should be 1');
+if (r.metrics.activeAuthors !== 2) throw new Error('symlinked telemetry must be ignored: ' + JSON.stringify(r.metrics));
 if (!Array.isArray(r.feed) || r.feed.length < 2) throw new Error('feed should list captures');
 if (!r.feed.some(f => f.archived)) throw new Error('decayed capture should appear flagged archived');
 " || fail "team-activity metrics" "$out"

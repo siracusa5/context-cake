@@ -16,7 +16,7 @@ import { buildSources } from "./sources/index.mjs";
 import { isTraversal } from "./sources/okf-local.mjs";
 import { resolveLiveLayer } from "./sources/git-sync.mjs";
 import { commitPaths, push } from "./sources/git-core.mjs";
-import { stageCapture, confirmCapture, resolveAuthor } from "./capture.mjs";
+import { appendFileInRoot, stageCapture, confirmCapture, resolveAuthor } from "./capture.mjs";
 import { slugify } from "./classify-context.mjs";
 
 const args = parseArgs(process.argv.slice(2));
@@ -220,9 +220,7 @@ function emitTelemetry(fields) {
     ...fields,
   });
   try {
-    const target = path.join(liveLayer.root, telemetryRel());
-    fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.appendFileSync(target, `${line}\n`);
+    appendFileInRoot(liveLayer.root, telemetryRel(), `${line}\n`);
     telemetryWritten = true;
     telemetryCount += 1;
   } catch {

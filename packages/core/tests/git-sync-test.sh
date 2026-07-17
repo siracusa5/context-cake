@@ -122,6 +122,18 @@ busy="$(node -e "const r=JSON.parse(process.argv[1]); console.log(r.filter(x=>x=
 [ "$busy" = "1" ] || fail "the loser of a stale-steal race must see LockBusy" "$out"
 rm -f "$alice/.contextcake.lock"
 
+# ---- git-core: a delayed holder cannot remove a replacement lock ---------------
+out="$(node_run "
+import fs from 'node:fs';
+import { withRepoLock } from '$core/sources/git-core.mjs';
+await withRepoLock('$alice', 'ownership', async () => {
+  fs.writeFileSync('$alice/.contextcake.lock', JSON.stringify({ pid: 2, ts: Date.now(), op: 'replacement', token: 'replacement-token' }));
+});
+console.log(JSON.parse(fs.readFileSync('$alice/.contextcake.lock', 'utf8')).token);
+")"
+grep -q 'replacement-token' <<<"$out" || fail "a stale holder must not delete a replacement lock" "$out"
+rm -f "$alice/.contextcake.lock"
+
 # ---- git-core: mutation on held lock errors LockBusy -------------------------
 printf '{"pid":%d,"ts":%d,"op":"test"}' "$$" "$(node -e 'console.log(Date.now())')" > "$alice/.contextcake.lock"
 out="$(node_run "
